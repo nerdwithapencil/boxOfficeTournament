@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>Standings</title>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    color-scheme:dark;
+    --bg:#08080B; --card:#1A1A24; --card-line:#343446; --seam:#3B3B52;
+    --gold:#F0B54B; --cream:#FFF3DC; --txt:#D9D9E4; --txt-dim:#8D8D9F;
+    --green:#5FC97A; --red:#E0574A;
+  }
+  *{box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%; background:var(--bg); color:var(--txt); font-family:'Archivo',sans-serif; overscroll-behavior:none;}
+  .app{height:100vh; max-width:480px; margin:0 auto; display:flex; flex-direction:column; background:var(--bg);}
+
+  .header{flex:0 0 auto; border-bottom:1px solid var(--card-line);}
+  .season{font-size:9.5px; letter-spacing:2.6px; font-weight:700; color:var(--txt-dim); text-align:center; padding:11px 16px 0;}
+  .hbar{display:flex; align-items:baseline; justify-content:space-between; gap:14px; padding:10px 16px 14px;}
+  .rd{font-size:27px; font-weight:800; letter-spacing:-.7px; color:var(--cream); line-height:1;}
+  .whoami{font-family:'IBM Plex Mono'; font-size:13px; font-weight:600; letter-spacing:1.2px; color:var(--gold); white-space:nowrap;}
+
+  .scroller{flex:1; min-height:0; overflow-y:auto; scrollbar-width:none;}
+  .scroller::-webkit-scrollbar{display:none;}
+  .list{padding:13px 16px 22px 52px;}     /* left padding leaves room for the movement tab */
+
+  .rowwrap{position:relative; margin-bottom:8px;}
+  .row{position:relative; z-index:2; display:flex; align-items:center; gap:12px;
+       background:var(--card); border:1px solid var(--card-line); border-radius:11px;
+       padding:10px 13px; min-height:82px; cursor:pointer;
+       background-image:linear-gradient(180deg, rgba(255,255,255,.045) 0%, rgba(255,255,255,0) 50%);
+       box-shadow:0 4px 12px -6px rgba(0,0,0,.8), inset 0 1px 0 rgba(255,255,255,.06);}
+  .row.me{border-color:rgba(240,181,75,.55);
+          background-image:linear-gradient(180deg, rgba(240,181,75,.10) 0%, rgba(240,181,75,.02) 60%);}
+  .row:active{border-color:var(--seam);}
+
+  .pl{font-family:'IBM Plex Mono'; font-size:16px; font-weight:700; color:var(--txt-dim);
+      width:30px; height:30px; flex:0 0 auto; display:flex; align-items:center; justify-content:center;}
+  .row.me .pl{color:var(--gold);}
+  /* podium: ties mean there can be several golds, or none of a given medal */
+  .pl.medal{border-radius:50%; color:#0C0C10; border:none;}
+  .pl.g1{background:#F0B54B;} .pl.g2{background:#C9CDD6;} .pl.g3{background:#C9884E;}
+  .row.me .pl.medal{color:#0C0C10;}
+  .mid{flex:1; min-width:0;}
+  .who{font-size:17px; font-weight:700; color:var(--cream); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  /* sits low on the bar so the name stays centred on the rank number */
+  .champ{position:absolute; left:56px; right:13px; bottom:10px;
+         font-family:'IBM Plex Mono'; font-size:10px; color:var(--gold);
+         white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .champ.dead{color:#8B8B9D; text-decoration:line-through; text-decoration-thickness:2px;
+              text-decoration-color:currentColor; -webkit-text-decoration-color:currentColor;}
+  .pts{font-family:'IBM Plex Mono'; flex:0 0 auto; display:flex; align-items:baseline; gap:4px;}
+  .pts b{font-size:22px; font-weight:700; color:var(--cream);}
+  .pts i{font-style:normal; font-size:8.5px; letter-spacing:1px; color:var(--txt-dim); font-weight:700;}
+
+  /* movement tacked onto the LEFT edge, tucked behind the row - it belongs with
+     the placing, not with the points */
+  .mvtab{position:absolute; z-index:1; left:-36px; top:50%; transform:translateY(-50%);
+         font-family:'IBM Plex Mono'; font-size:10.5px; font-weight:700;
+         padding:5px 21px 5px 9px; border-radius:9px 0 0 9px;
+         background:#20202C; border:1px solid var(--card-line); border-right:none; white-space:nowrap;}
+  .mvtab.up{color:var(--green); background:rgba(38,58,44,.95); border-color:rgba(95,201,122,.4);}
+  .mvtab.dn{color:var(--red);   background:rgba(58,34,32,.95); border-color:rgba(224,87,74,.4);}
+  .mvtab.fl{color:#5A5A68;}
+
+  .since{text-align:center; font-family:'IBM Plex Mono'; font-size:9px; letter-spacing:1.2px;
+         color:#55555F; padding:2px 16px 14px;}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <div class="season">2026 BOX OFFICE TOURNAMENT</div>
+    <div class="hbar">
+      <div class="rd">Standings</div>
+      <div class="whoami">14 PLAYERS</div>
+    </div>
+  </div>
+
+  <div class="scroller">
+    <div class="list" id="list"></div>
+    <div class="since">MOVEMENT SINCE GOAT OPENED · SEP 11</div>
+  </div>
+</div>
+
+<script>
+/* place, name, points, movement, champion pick, champion still alive */
+const players=[
+  [1,'Andrew',      18,  1, 'Avengers: Doomsday', true],
+  [2,'George',      17,  2, 'Avengers: Doomsday', true],
+  [3,'Ben',         16, -1, 'Avengers: Doomsday', true],
+  [3,'Christopher', 16,  0, 'Avengers: Doomsday', true],
+  [3,'Nick',        16,  4, 'Avengers: Doomsday', true],
+  [3,'Umar',        16, -2, 'Avengers: Doomsday', true],
+  [7,'Daniel',      15, -2, 'Avengers: Doomsday', true],
+  [7,'Josh',        15,  1, 'Avengers: Doomsday', true],
+  [7,'Alex',        15, -4, 'Avengers: Doomsday', true],
+  [7,'Minnesota',   15,  3, 'Avengers: Doomsday', true],
+  [11,'Sean',       14, -3, 'The Super Mario Galaxy Movie', false],
+  [11,'Adam',       14,  0, 'Avengers: Doomsday', true],
+  [13,'Andy',       13,  1, 'Avengers: Doomsday', true],
+  [14,'Jason',      12, -1, 'Avengers: Doomsday', true],
+];
+const ME='Jason';
+
+document.getElementById('list').innerHTML = players.map(([pl,name,pts,mv,champ,alive])=>{
+  const cls = mv>0 ? 'up' : mv<0 ? 'dn' : 'fl';
+  const label = mv>0 ? `▲&thinsp;${mv}` : mv<0 ? `▼&thinsp;${Math.abs(mv)}` : '—';
+  const medal = pl<=3 ? `medal g${pl}` : '';
+  return `<div class="rowwrap">
+    <span class="mvtab ${cls}">${label}</span>
+    <div class="row ${name===ME?'me':''}">
+      <span class="pl ${medal}">${pl}</span>
+      <div class="mid"><div class="who">${name}</div></div>
+      <div class="pts"><b>${pts}</b><i>PTS</i></div>
+      <div class="champ ${alive?'':'dead'}">${champ}</div>
+    </div>
+  </div>`;
+}).join('');
+</script>
+</body>
+</html>

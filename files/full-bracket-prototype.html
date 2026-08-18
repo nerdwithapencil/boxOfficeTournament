@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Full Bracket</title>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    color-scheme:dark;
+    --bg:#08080B; --card:#1A1A24; --card-line:#343446; --seam:#3B3B52;
+    --gold:#F0B54B; --gold-dim:#8C7133; --cream:#FFF3DC;
+    --txt:#D9D9E4; --txt-dim:#8D8D9F; --green:#5FC97A; --red:#E0574A;
+  }
+  *{box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%; width:100%; background:var(--bg); color:var(--txt); font-family:'Archivo',sans-serif;
+            overflow:hidden; overscroll-behavior:none; position:fixed; top:0; left:0; touch-action:none;}
+  .app{height:100%; display:flex; flex-direction:column; position:relative; background:var(--bg);}
+
+  .header{flex:0 0 auto; border-bottom:1px solid var(--card-line); background:var(--bg);}
+  .season{font-size:9.5px; letter-spacing:2.6px; font-weight:700; color:var(--txt-dim);
+          text-align:center; padding:11px 16px 0;}
+  .hbar{display:flex; align-items:baseline; justify-content:space-between; gap:14px; padding:10px 16px 14px;}
+  .rd{font-size:27px; font-weight:800; letter-spacing:-.7px; color:var(--cream); line-height:1.0;}
+  .whoami{font-family:'IBM Plex Mono'; font-size:13px; font-weight:600; letter-spacing:1.2px;
+          color:var(--gold); white-space:nowrap; flex:0 0 auto;}
+
+  /* ---------- the canvas ---------- */
+  .viewport{flex:1; min-height:0; position:relative; overflow:hidden; touch-action:none;
+            overscroll-behavior:none; background:var(--bg); cursor:grab;}
+  .viewport.dragging{cursor:grabbing;}
+  .stage{position:absolute; top:0; left:0; transform-origin:0 0; will-change:transform;}
+  .lines{position:absolute; left:0; top:0; pointer-events:none; overflow:visible;}
+
+  .m{position:absolute; width:160px; border-radius:7px; overflow:hidden;
+     background:var(--card); border:1px solid var(--card-line);
+     background-image:linear-gradient(180deg, rgba(255,255,255,.05) 0%, rgba(255,255,255,0) 50%);}
+  .row{display:flex; align-items:center; gap:6px; padding:6px 8px; height:31px; position:relative;}
+  .row + .row{border-top:1px solid var(--seam);}
+  .sd{font-family:'IBM Plex Mono'; font-size:8px; font-weight:600; color:var(--txt-dim); flex:0 0 auto;}
+  .nm{font-size:10.5px; font-weight:700; letter-spacing:-.1px; text-transform:uppercase; color:var(--txt);
+      flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .fg{font-family:'IBM Plex Mono'; font-size:8.5px; font-weight:600; color:var(--txt-dim); flex:0 0 auto;}
+
+  .row.won{background:rgba(95,201,122,.13);}
+  .row.won .nm{color:#E8FBEE;} .row.won .fg{color:var(--green);} .row.won .sd{color:var(--green);}
+  .row.lost .nm{color:#82828E; text-decoration:line-through; text-decoration-thickness:2px;
+                text-decoration-color:currentColor; -webkit-text-decoration-color:currentColor;}
+  .row.lost .fg, .row.lost .sd{color:#63636F;}
+  .row.tbd .nm{color:var(--txt-dim); font-style:italic; font-weight:600; text-transform:none;}
+  .row.tbd .fg{color:#63636F;}
+  .m.champ{width:186px; border-color:var(--gold-dim); box-shadow:0 0 22px -6px rgba(240,181,75,.5);}
+  .m.champ .row{height:35px;}
+
+  .regionlab{position:absolute; font-family:'IBM Plex Mono'; font-size:12px; letter-spacing:3px;
+             color:var(--txt-dim); white-space:nowrap; writing-mode:vertical-rl; transform:rotate(180deg);
+             display:flex; align-items:center; justify-content:center;}
+  .roundlab{position:absolute; font-family:'IBM Plex Mono'; font-size:9.5px; letter-spacing:1.8px;
+            color:#5C5C6B; white-space:nowrap; text-align:center;}
+
+  /* ---------- controls ---------- */
+  .ctrl{position:absolute; bottom:14px; left:50%; transform:translateX(-50%); z-index:20; display:flex; gap:4px;
+        background:rgba(0,0,0,.72); border:1px solid var(--card-line); border-radius:20px; padding:4px;
+        backdrop-filter:blur(6px);}
+  .ctrl button{background:none; border:none; color:var(--txt-dim); font-family:'IBM Plex Mono'; font-size:9.5px;
+               font-weight:600; letter-spacing:.5px; padding:6px 11px; border-radius:16px; cursor:pointer;}
+  .ctrl button.on{background:var(--card-line); color:var(--cream);}
+  .ctrl .sep{width:1px; background:var(--card-line); margin:4px 2px;}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <div class="season">2026 BOX OFFICE TOURNAMENT</div>
+    <div class="hbar">
+      <div class="rd">Full Bracket</div>
+      <div class="whoami">MASTER BRACKET</div>
+    </div>
+  </div>
+
+  <div class="viewport" id="viewport">
+    <div class="stage" id="stage"></div>
+  </div>
+
+  <div class="ctrl">
+    <button onclick="resetView()">FIT</button>
+    <button onclick="zoomBy(1.5)">+</button>
+    <button onclick="zoomBy(1/1.5)">−</button>
+    <div class="sep"></div>
+    <button id="devMid" onclick="setSeason('mid')">MID</button>
+    <button id="devEnd" onclick="setSeason('end')">FINAL</button>
+  </div>
+</div>
+
+<script>
+/* ================= DATA (identical to the other screens) ================= */
+const bracketNames=["Bracket 1","Bracket 2","Bracket 3","Bracket 4"];
+const seedOrder=[1,16,8,9,5,12,4,13,6,11,3,14,7,10,2,15];
+const B1=["Avengers: Doomsday","Mercy","The Angry Birds Movie 3","Goat","Dr. Seuss' The Cat in the Hat","Young Washington","Michael","Focker-In-Law","Street Fighter","Practical Magic 2","Hexed","Cut Off","Scream 7","Return to Silent Hill","The Super Mario Galaxy Movie","Soulm8te"];
+const B2=["Toy Story 5","Crime 101","PAW Patrol: The Dino Movie","Untitled Spielberg Film","Animal Friends","The Dog Stars","Forgotten Island","The Breadwinner","The Odyssey","Werwulf","Moana","Remain","Insidious 6","Evil Dead Burn","Dune: Part Three","Shiver"];
+const B3=["The Mandalorian & Grogu","Reminders of Him","The Devil Wears Prada 2","The Bride!","Project Hail Mary","The Social Reckoning","Hoppers","Archangel","Mortal Kombat II","28 Years Later: The Bone Temple","Masters of the Universe","Cliffhanger","Violent Night 2","Wuthering Heights","The Hunger Games: Sunrise on the Reaping","The Drama"];
+const B4=["Spider-Man: Brand New Day","Power Ballad","Clayface","Ready or Not 2: Here I Come","The Mummy","Whitney Springs","The Legend of Aang: The Last Airbender","4 Kids Walk Into a Bank","Narnia: The Magician's Nephew","Scary Movie 6","Jumanji 4","Greenland 2: Migration","Coyote vs Acme","Resident Evil","Supergirl: Woman of Tomorrow","The Sheep Detectives"];
+
+const roundsInfo=[
+  {name:"ROUND 1",pairs:32},{name:"ROUND 2",pairs:16},{name:"ROUND 3",pairs:8},
+  {name:"QUARTER-FINALS",pairs:4},{name:"SEMI-FINALS",pairs:2},{name:"CHAMPIONSHIP",pairs:1}];
+const NR=6;
+
+let _s=20260812;
+const rnd=()=>{ _s|=0; _s=_s+0x6D2B79F5|0; let t=Math.imul(_s^_s>>>15,1|_s); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; };
+const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+let mid=0;
+const mk=(t,b)=>t.map((name,i)=>{
+  const m={id:'m'+(mid++), name, seed:seedOrder[i], bracket:b};
+  m.date=new Date(2026,0,4+Math.floor(rnd()*355));
+  m.finalScore=Math.round(Math.max(1.1, 175*Math.exp(-0.17*(m.seed-1))*(0.55+rnd()*0.95))*100)/100;
+  return m;
+});
+const allMovies=[...mk(B1,0),...mk(B2,1),...mk(B3,2),...mk(B4,3)];
+allMovies[6].zero='pushed to 2027';
+allMovies[7].zero='cancelled';
+allMovies[29].zero='streaming';
+allMovies[44].zero='pushed to 2027';
+allMovies.forEach(m=>{ if(m.zero) m.finalScore=0; });
+
+let TODAY=new Date(2026,7,12);
+const isOut = m => m.zero ? true : m.date<=TODAY;
+const scoreOf = m => isOut(m) ? m.finalScore : null;
+
+function makeResolver(getScore){
+  const cache={};
+  return function res(r,i){
+    const key=r+':'+i;
+    if(cache[key]) return cache[key];
+    let a,b,done=false,winner=null,tie=false;
+    if(r===1){
+      a=allMovies[i*2]; b=allMovies[i*2+1];
+      const sa=getScore(a), sb=getScore(b);
+      if(sa!=null&&sb!=null){ done=true; if(sa===sb) tie=true; else winner = sa>sb?a:b; }
+    } else {
+      const A=res(r-1,i*2), B=res(r-1,i*2+1);
+      a=A.winner; b=B.winner;
+      if(A.done&&B.done){
+        done=true;
+        if(a&&b){ const sa=getScore(a), sb=getScore(b); if(sa===sb) tie=true; else winner = sa>sb?a:b; }
+        else if(a||b){ const solo=a||b, ss=getScore(solo);
+          if(ss==null) done=false; else if(ss>0) winner=solo; else tie=true; }
+        else tie=true;
+      }
+    }
+    return cache[key]={a,b,done,winner,tie};
+  };
+}
+let resolve=makeResolver(scoreOf);
+
+const pow2=r=>1<<r;
+function latestPendingDate(r,i){
+  const start=i*pow2(r), end=start+pow2(r);
+  let d=null;
+  for(let k=start;k<end;k++){ const m=allMovies[k]; if(isOut(m)) continue; if(!d||m.date>d) d=m.date; }
+  return d;
+}
+function slot(r,i,side){
+  if(r===1) return {kind:'movie', round:1, m:allMovies[side==='a'?i*2:i*2+1]};
+  const fi = side==='a' ? i*2 : i*2+1;
+  const f = resolve(r-1, fi);
+  if(!f.done)   return {kind:'tbd', by:latestPendingDate(r-1,fi)};
+  if(!f.winner) return {kind:'tie'};
+  return {kind:'movie', round:r, m:f.winner};
+}
+
+/* =========================================================================
+   GEOMETRY — a mirrored bracket
+   Brackets 1 & 2 run left-to-right down the left side, 3 & 4 run right-to-left
+   down the right, and both converge on the Championship in the middle. In the
+   data, the first half of every round's matchups is the left side and the
+   second half is the right, so the split is just an index test.
+   ========================================================================= */
+const CARD_W=160, ROW_H=31, CARD_H=ROW_H*2, COL_GAP=32, ROW_PITCH=70;
+const PAD_X=52, PAD_TOP=64, PAD_BOT=40, REGION_GAP=64;
+const COLS = 11;                                   // 5 left + centre + 5 right
+const colX = c => PAD_X + c*(CARD_W+COL_GAP);
+const STAGE_W = PAD_X*2 + COLS*CARD_W + (COLS-1)*COL_GAP;
+const STAGE_H = PAD_TOP + 16*ROW_PITCH + REGION_GAP + PAD_BOT;
+
+/* Each side holds two regions stacked, split at row 8, with a gap between them.
+   A matchup sitting entirely in the lower region shifts down by the gap; one
+   that spans both (the Semi-Final) takes half of it. */
+const rowY = centreRow =>
+  PAD_TOP + centreRow*ROW_PITCH +
+  (centreRow>8 ? REGION_GAP : centreRow===8 ? REGION_GAP/2 : 0);
+
+function place(r,i){
+  const half=roundsInfo[r-1].pairs/2;
+  if(r===NR) return {col:5, side:'c', y:rowY(8)};                     // championship, dead centre
+  const left = i < half;
+  const j = left ? i : i-half;                                        // index within its own side
+  const span = pow2(r-1);                                             // rows this matchup covers
+  return {col: left ? r-1 : COLS-r, side: left?'l':'r', y: rowY((j+0.5)*span)};
+}
+
+function rowHTML(sl,res,isTie){
+  if(sl.kind==='tbd'){
+    const by = sl.by ? `${MONTHS[sl.by.getMonth()]} ${sl.by.getDate()}` : '';
+    return `<div class="row tbd"><span class="nm">TBD</span><span class="fg">${by}</span></div>`;
+  }
+  if(sl.kind==='tie')
+    return `<div class="row tbd"><span class="nm">Tie</span><span class="fg">$0.00M</span></div>`;
+  const m=sl.m, sc=scoreOf(m);
+  let cls='row';
+  if(isTie) cls+=' lost';
+  else if(res.done&&res.winner) cls += (res.winner===m?' won':' lost');
+  const seed = sl.round===1 ? `<span class="sd">${m.seed}</span>` : '';
+  const fig = sc!=null ? `$${sc.toFixed(2)}` : `${MONTHS[m.date.getMonth()]} ${m.date.getDate()}`;
+  return `<div class="${cls}">${seed}<span class="nm">${m.name}</span><span class="fg">${fig}</span></div>`;
+}
+
+function build(){
+  const stage=document.getElementById('stage');
+  stage.style.width=STAGE_W+'px'; stage.style.height=STAGE_H+'px';
+  let h='';
+
+  // round labels across the top, mirrored
+  for(let r=1;r<=NR;r++){
+    const half=roundsInfo[r-1].pairs/2;
+    const cols = r===NR ? [5] : [r-1, COLS-r];
+    cols.forEach(c=>{
+      h+=`<div class="roundlab" style="left:${colX(c)}px; top:34px; width:${CARD_W}px;">${roundsInfo[r-1].name}</div>`;
+    });
+  }
+  // region names running up the outer edge of each half
+  [0,1,2,3].forEach(b=>{
+    const leftSide = b<2, lower = b%2===1;
+    const yTop = rowY(lower?8:0) + (lower?0:0);
+    const hgt = 8*ROW_PITCH;
+    const x = leftSide ? PAD_X-30 : STAGE_W-PAD_X+8;
+    h+=`<div class="regionlab" style="left:${x}px; top:${yTop}px; height:${hgt}px; width:22px;">${bracketNames[b]}</div>`;
+  });
+
+  for(let r=1;r<=NR;r++){
+    for(let i=0;i<roundsInfo[r-1].pairs;i++){
+      const p=place(r,i), res=resolve(r,i), isTie=res.done&&res.tie;
+      const w = r===NR ? 186 : CARD_W;
+      const x = r===NR ? colX(5)-(186-CARD_W)/2 : colX(p.col);
+      const hh = r===NR ? 70 : CARD_H;
+      h+=`<div class="m ${r===NR?'champ':''}" style="left:${x}px; top:${p.y-hh/2}px;">
+        ${rowHTML(slot(r,i,'a'),res,isTie)}${rowHTML(slot(r,i,'b'),res,isTie)}</div>`;
+    }
+  }
+  stage.innerHTML = h + `<svg class="lines" id="lines" width="${STAGE_W}" height="${STAGE_H}"></svg>`;
+  drawLines();
+  fitTitles();
+}
+
+/* Long titles step down in size until they fit; only the stubbornest ones end
+   up clipped, and then only after they've shrunk as far as they usefully can. */
+function fitTitles(){
+  document.querySelectorAll('.nm').forEach(el=>{
+    el.style.fontSize='';
+    let fs=10.5;
+    while(el.scrollWidth > el.clientWidth+0.5 && fs>7.2){
+      fs-=0.4;
+      el.style.fontSize=fs.toFixed(1)+'px';
+    }
+  });
+}
+
+function drawLines(){
+  let d='';
+  for(let r=1;r<NR;r++){
+    const info=roundsInfo[r-1];
+    for(let j=0;j<info.pairs/2;j++){
+      const A=place(r,j*2), B=place(r,j*2+1), P=place(r+1,j);
+      if(A.side!==B.side) continue;                       // never bridge the two halves
+      const leftSide = A.side==='l';
+      const xOut = leftSide ? colX(A.col)+CARD_W : colX(A.col);
+      const xIn  = P.side==='c'
+        ? (leftSide ? colX(5)-(186-CARD_W)/2 : colX(5)-(186-CARD_W)/2 + 186)
+        : (leftSide ? colX(P.col) : colX(P.col)+CARD_W);
+      const xMid = (xOut+xIn)/2;
+      d+=`M${xOut},${A.y} H${xMid} M${xOut},${B.y} H${xMid} M${xMid},${A.y} V${B.y} M${xMid},${P.y} H${xIn} `;
+    }
+  }
+  document.getElementById('lines').innerHTML =
+    `<path d="${d}" stroke="var(--gold-dim)" stroke-width="1.4" fill="none" stroke-linecap="round" opacity=".8"/>`;
+}
+
+/* =========================================================================
+   PAN + PINCH — one transform on the stage, driven by pointer events
+   ========================================================================= */
+let scale=1, tx=0, ty=0, minScale=0.1, maxScale=2.6;
+const stageEl=()=>document.getElementById('stage');
+const vpEl=()=>document.getElementById('viewport');
+function apply(){ stageEl().style.transform=`translate(${tx}px,${ty}px) scale(${scale})`; }
+
+function clamp(){
+  const v=vpEl(), vw=v.clientWidth, vh=v.clientHeight;
+  const w=STAGE_W*scale, hgt=STAGE_H*scale;
+  // keep the bracket from being dragged entirely off screen
+  tx = w<=vw ? (vw-w)/2 : Math.min(0, Math.max(vw-w, tx));
+  ty = hgt<=vh ? (vh-hgt)/2 : Math.min(0, Math.max(vh-hgt, ty));
+}
+/* The furthest out you can ever go is the point where the bracket fills the
+   screen's short dimension - portrait fills the height, landscape fills the
+   width. Beyond that the text is unreadable, so there's nothing to gain. */
+function baseScale(){
+  const v=vpEl();
+  const portrait = v.clientHeight >= v.clientWidth;
+  return portrait ? (v.clientHeight/STAGE_H) : (v.clientWidth/STAGE_W);
+}
+function resetView(){
+  minScale = baseScale();
+  scale = minScale;
+  tx=0; ty=0;
+  clamp(); apply();
+}
+function zoomAt(k, cx, cy){
+  const next=Math.max(minScale, Math.min(maxScale, scale*k));
+  const f=next/scale;
+  tx = cx - (cx-tx)*f;
+  ty = cy - (cy-ty)*f;
+  scale=next; clamp(); apply();
+}
+function zoomBy(k){ const v=vpEl(); zoomAt(k, v.clientWidth/2, v.clientHeight/2); }
+
+const pts=new Map();
+let last=null, pinch=null, lastTap=0;
+function local(e){ const r=vpEl().getBoundingClientRect(); return {x:e.clientX-r.left, y:e.clientY-r.top}; }
+
+vpEl().addEventListener('pointerdown', e=>{
+  vpEl().setPointerCapture(e.pointerId);
+  pts.set(e.pointerId, local(e));
+  if(pts.size===1){
+    last=local(e);
+    vpEl().classList.add('dragging');
+    const now=performance.now();
+    if(now-lastTap<300){ const p=local(e); zoomAt(1.9, p.x, p.y); }
+    lastTap=now;
+  } else if(pts.size===2){
+    const [a,b]=[...pts.values()];
+    pinch={d:Math.hypot(a.x-b.x,a.y-b.y), c:{x:(a.x+b.x)/2, y:(a.y+b.y)/2}};
+  }
+});
+vpEl().addEventListener('pointermove', e=>{
+  if(!pts.has(e.pointerId)) return;
+  pts.set(e.pointerId, local(e));
+  if(pts.size===2 && pinch){
+    const [a,b]=[...pts.values()];
+    const d=Math.hypot(a.x-b.x,a.y-b.y), c={x:(a.x+b.x)/2, y:(a.y+b.y)/2};
+    if(pinch.d>0){
+      // zoom about the pinch centre, and pan with it if the fingers slide
+      tx += c.x-pinch.c.x; ty += c.y-pinch.c.y;
+      zoomAt(d/pinch.d, c.x, c.y);
+    }
+    pinch={d,c};
+  } else if(pts.size===1 && last){
+    const p=local(e);
+    tx += p.x-last.x; ty += p.y-last.y;
+    last=p; clamp(); apply();
+  }
+});
+function release(e){
+  pts.delete(e.pointerId);
+  if(pts.size<2) pinch=null;
+  if(pts.size===0){ last=null; vpEl().classList.remove('dragging'); }
+  else last=[...pts.values()][0];
+}
+vpEl().addEventListener('pointerup', release);
+vpEl().addEventListener('pointercancel', release);
+// the drag is ours; don't let an unconsumed gesture bubble out to the page host
+vpEl().addEventListener('touchmove', e=>e.preventDefault(), {passive:false});
+document.addEventListener('touchmove', e=>{ if(e.cancelable) e.preventDefault(); }, {passive:false});
+
+vpEl().addEventListener('wheel', e=>{
+  e.preventDefault();
+  const p=local(e);
+  zoomAt(e.deltaY<0 ? 1.12 : 1/1.12, p.x, p.y);
+}, {passive:false});
+
+function setSeason(which){
+  TODAY = which==='end' ? new Date(2026,11,31) : new Date(2026,7,12);
+  resolve = makeResolver(scoreOf);
+  document.getElementById('devMid').classList.toggle('on', which==='mid');
+  document.getElementById('devEnd').classList.toggle('on', which==='end');
+  build(); apply();
+}
+
+setSeason('mid');
+resetView();
+// turning the phone changes which dimension is the limit, so start fresh
+let lastPortrait = null;
+function onViewportChange(){
+  const v=vpEl(), portrait = v.clientHeight>=v.clientWidth;
+  if(portrait!==lastPortrait){ lastPortrait=portrait; resetView(); }
+  else { minScale=baseScale(); if(scale<minScale) scale=minScale; clamp(); apply(); }
+  fitTitles();
+}
+window.addEventListener('resize', onViewportChange);
+window.addEventListener('orientationchange', ()=>setTimeout(onViewportChange,150));
+if(document.fonts?.ready) document.fonts.ready.then(fitTitles);
+</script>
+</body>
+</html>

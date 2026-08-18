@@ -1,0 +1,1594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Box Office Bracket</title>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    color-scheme:dark;
+    --bg:#08080B; --card:#1A1A24; --card-line:#343446; --seam:#3B3B52;
+    --gold:#F0B54B; --gold-dim:#8C7133; --cream:#FFF3DC;
+    --txt:#D9D9E4; --txt-dim:#8D8D9F; --txt-lose:#A0A0B2;
+    --green:#5FC97A; --red:#E0574A;
+  }
+  *{box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%; background:var(--bg); color:var(--txt); font-family:'Archivo',sans-serif; overscroll-behavior:none;}
+  .app{height:100vh; max-width:480px; margin:0 auto; display:flex; flex-direction:column; position:relative; background:var(--bg); overflow:hidden;}
+
+  /* ---------- headers ---------- */
+  .header{flex:0 0 auto; border-bottom:1px solid var(--card-line); position:relative;}
+  .season{font-size:9.5px; letter-spacing:2.6px; font-weight:700; color:var(--txt-dim); text-align:center; padding:11px 16px 0;}
+  .hbar{display:flex; align-items:stretch; justify-content:space-between; gap:14px; padding:10px 16px 13px;}
+  .hbar.centre{display:block; text-align:center;}
+  .hbar.base{align-items:baseline;}
+  .hleft{min-width:0; display:flex; flex-direction:column; justify-content:space-between;}
+  .rd{font-size:27px; font-weight:800; letter-spacing:-.7px; color:var(--cream); line-height:1;
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .rdpts{font-family:'IBM Plex Mono'; font-size:10.5px; font-weight:700; color:var(--txt-dim);
+         margin-top:5px; white-space:nowrap; display:flex; align-items:baseline; gap:5px;}
+  .rdpts b{color:var(--green); font-weight:700; font-size:15px;}
+  .hright{flex:0 0 auto; display:flex; flex-direction:column; align-items:flex-end; justify-content:space-between; gap:8px;}
+  .pill{background:var(--gold); color:#17130A; border:none; border-radius:22px; padding:6px 13px; font-family:'Archivo';
+        font-weight:800; font-size:15px; letter-spacing:-.3px; line-height:1; white-space:nowrap; cursor:pointer;
+        box-shadow:0 2px 10px -2px rgba(240,181,75,.45); display:inline-flex; align-items:baseline;}
+  .pill .rk{font-family:'IBM Plex Mono'; font-size:10px; font-weight:700; opacity:.72; margin-left:7px;}
+  .tot{font-family:'IBM Plex Mono'; line-height:1; display:flex; align-items:baseline; justify-content:flex-end; gap:6px;}
+  .tot .lab{font-size:9px; letter-spacing:1.1px; color:rgba(240,181,75,.75); font-weight:700;}
+  .tot .num{font-size:22px; font-weight:700; color:var(--cream);}
+  .whoami{font-family:'IBM Plex Mono'; font-size:13px; font-weight:600; letter-spacing:1.2px; color:var(--gold); white-space:nowrap;}
+  .back{position:absolute; left:12px; top:34px; width:32px; height:32px; border-radius:50%; background:var(--card);
+        border:1px solid var(--card-line); color:var(--cream); display:flex; align-items:center; justify-content:center;
+        font-size:16px; cursor:pointer; z-index:5;}
+
+  /* ---------- bracket plane ---------- */
+  .bracket-body{flex:1; min-height:0; position:relative;}
+  .viewport{position:absolute; inset:0; overflow-y:auto; overflow-x:hidden; touch-action:pan-y;
+            scrollbar-width:none; -webkit-overflow-scrolling:touch;}
+  .viewport::-webkit-scrollbar{display:none;}
+  .plane{position:relative; display:flex; will-change:transform;}
+  .col{position:relative; flex:0 0 auto;}
+  .lines{position:absolute; left:0; top:0; pointer-events:none; overflow:visible;}
+  .group-label{position:absolute; left:16px; font-family:'IBM Plex Mono'; font-size:9.5px;
+               letter-spacing:2px; color:var(--txt-dim); white-space:nowrap;}
+
+  .unit{position:absolute; z-index:2; left:16px; right:46px; display:flex; border-radius:12px; overflow:hidden;
+        transform-origin:center center; background:var(--card); border:1px solid var(--card-line); isolation:isolate;
+        background-image:linear-gradient(180deg, rgba(255,255,255,.055) 0%, rgba(255,255,255,0) 46%);
+        box-shadow:0 6px 18px -6px rgba(0,0,0,.85), inset 0 1px 0 rgba(255,255,255,.07);}
+  .half{flex:1 1 0; min-width:0; display:flex; flex-direction:column; justify-content:center; align-items:flex-start;
+        gap:5px; padding:14px 15px 15px; position:relative; min-height:92px;
+        transition:color .34s ease, flex-grow .40s cubic-bezier(.2,.75,.2,1);}
+  .half + .half::before{content:''; position:absolute; left:0; top:15px; bottom:15px; width:1px; background:var(--seam);}
+  .toprow{display:flex; align-items:center; gap:7px; min-height:14px;}
+  .sd{font-family:'IBM Plex Mono'; font-size:10px; font-weight:600; color:var(--txt-dim); letter-spacing:.5px; transition:.34s ease;}
+  .tietag{font-size:8px; font-weight:700; letter-spacing:1px; padding:2px 5px; border-radius:20px;
+          white-space:nowrap; border:1px solid currentColor; color:#9A9AAE;}
+  .ttl{font-size:12.5px; font-weight:700; letter-spacing:-.2px; line-height:1.18; text-transform:uppercase; color:var(--txt);
+       min-width:0; overflow:hidden; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical;
+       transition:font-size .40s cubic-bezier(.2,.75,.2,1), color .34s ease;}
+  .fig{font-family:'IBM Plex Mono'; font-size:11px; font-weight:600; color:var(--txt-dim); letter-spacing:.2px;}
+
+  .half.mine{flex-grow:1.32;}
+  .half.mine .ttl{font-size:17.5px; font-weight:800; letter-spacing:-.5px;}
+  .half.mine::after{content:''; position:absolute; inset:0; z-index:-1; pointer-events:none;}
+  .half.mine.pending::after{background:radial-gradient(125% 155% at 50% 118%, rgba(240,181,75,.30) 0%, rgba(240,181,75,.11) 45%, transparent 78%);}
+  .half.mine.pending .ttl{color:var(--cream); text-shadow:0 0 22px rgba(240,181,75,.35);}
+  .half.mine.pending .sd, .half.mine.pending .fig.paid{color:var(--gold);}
+  .half.mine.correct::after{background:radial-gradient(125% 155% at 50% 118%, rgba(95,201,122,.30) 0%, rgba(95,201,122,.11) 45%, transparent 78%);}
+  .half.mine.correct .ttl{color:#E8FBEE; text-shadow:0 0 22px rgba(95,201,122,.38);}
+  .half.mine.correct .sd, .half.mine.correct .fig.paid{color:var(--green);}
+  .half.mine.dead::after{background:radial-gradient(125% 155% at 50% 118%, rgba(224,87,74,.26) 0%, rgba(224,87,74,.09) 45%, transparent 78%);}
+  .half.mine.dead .ttl{color:#F0C4C0;}
+  .half.mine.dead .sd{color:var(--red);}
+  .half.mine.dead .fig{color:#A88B88;}
+  .half.other{flex-grow:.84;}
+  .half.other .ttl{font-size:11.5px; font-weight:600; color:var(--txt-lose);}
+  .half.other .sd{color:#7A7A8C;}
+  .half.gone .ttl{text-decoration:line-through; text-decoration-thickness:3px;
+                  text-decoration-color:currentColor; -webkit-text-decoration-color:currentColor;}
+  .half.other.gone .ttl{color:#8B8B9D;}
+  .half.other.gone .sd, .half.other.gone .fig{color:#6E6E80;}
+
+  /* master-bracket states */
+  .half.neutral .ttl{font-size:13px;}
+  .half.tbd .ttl, .half.tieslot .ttl{color:var(--txt-dim); font-style:italic; text-transform:none; font-weight:600;}
+  .half.won{flex-grow:1.32;}
+  .half.won::after{content:''; position:absolute; inset:0; z-index:-1; pointer-events:none;
+    background:radial-gradient(125% 155% at 50% 118%, rgba(95,201,122,.30) 0%, rgba(95,201,122,.11) 45%, transparent 78%);}
+  .half.won .ttl{font-size:17.5px; font-weight:800; letter-spacing:-.5px; color:#E8FBEE; text-shadow:0 0 22px rgba(95,201,122,.38);}
+  .half.won .sd, .half.won .fig.paid{color:var(--green);}
+  .half.lost{flex-grow:.84;}
+  .half.lost .ttl{font-size:11.5px; font-weight:600; color:#8B8B9D; text-decoration:line-through;
+                  text-decoration-thickness:3px; text-decoration-color:currentColor;}
+  .half.lost .sd, .half.lost .fig{color:#6E6E80;}
+
+  /* fill mode */
+  .half.pick{cursor:pointer;}
+  .half.win{flex-grow:1.34;}
+  .half.win::after{content:''; position:absolute; inset:0; z-index:-1; pointer-events:none;
+    background:radial-gradient(125% 155% at 50% 118%, rgba(240,181,75,.30) 0%, rgba(240,181,75,.11) 45%, transparent 78%);}
+  .half.win .ttl{font-size:18px; font-weight:800; letter-spacing:-.55px; color:var(--cream); text-shadow:0 0 22px rgba(240,181,75,.35);}
+  .half.win .sd{color:var(--gold);}
+  .half.lose{flex-grow:.82;}
+  .half.lose .ttl{font-size:11.5px; font-weight:600; color:var(--txt-lose);}
+  .half.lose .sd{color:#7A7A8C;}
+  .unit.locked{border-style:dashed; background:rgba(26,26,36,.55); box-shadow:none; background-image:none;}
+  .unit.locked .lockmsg{padding:24px 14px; width:100%; text-align:center; font-size:11px; color:var(--txt-dim); font-style:italic;}
+
+  .ptab{position:absolute; z-index:1; left:16px; font-family:'IBM Plex Mono'; font-size:10.5px; font-weight:700;
+        padding:5px 11px 12px; border-radius:9px 9px 0 0; background:#20202C;
+        border:1px solid var(--card-line); border-bottom:none; white-space:nowrap;}
+  .ptab.good{color:var(--green); background:rgba(38,58,44,.95); border-color:rgba(95,201,122,.4);}
+  .ptab.zero{color:var(--red);   background:rgba(58,34,32,.95); border-color:rgba(224,87,74,.4);}
+
+  /* ---------- shell ---------- */
+  .screen{display:none; flex-direction:column; height:100%;}
+  .screen.on{display:flex;}
+  .nav{position:absolute; left:0; right:0; bottom:0; z-index:40; display:flex;
+       background:rgba(14,14,20,.94); backdrop-filter:blur(14px);
+       border-top:1px solid var(--card-line); padding:7px 6px 9px;
+       transition:transform .26s cubic-bezier(.2,.75,.2,1);}
+  .nav.hidden{transform:translateY(115%);}
+  .nav button{flex:1; background:none; border:none; cursor:pointer; padding:5px 2px 3px;
+              display:flex; flex-direction:column; align-items:center; gap:4px;
+              color:var(--txt-dim); font-family:'Archivo'; font-size:9px; font-weight:700; letter-spacing:.4px;}
+  .nav button svg{width:21px; height:21px; fill:currentColor;}
+  .nav button.on{color:var(--gold);}
+  .nav button .dot{position:absolute; top:4px; margin-left:26px; width:6px; height:6px; border-radius:50%; background:var(--gold);}
+  .padbottom{height:78px;}
+
+  /* ---------- scrollers / lists ---------- */
+  .scroller{flex:1; min-height:0; overflow-y:auto; scrollbar-width:none;}
+  .scroller::-webkit-scrollbar{display:none;}
+
+  .slist{padding:13px 16px 0 52px;}
+  .rowwrap{position:relative; margin-bottom:8px;}
+  .srow{position:relative; z-index:2; display:flex; align-items:center; gap:12px;
+       background:var(--card); border:1px solid var(--card-line); border-radius:11px;
+       padding:10px 13px; min-height:82px; cursor:pointer;
+       background-image:linear-gradient(180deg, rgba(255,255,255,.045) 0%, rgba(255,255,255,0) 50%);
+       box-shadow:0 4px 12px -6px rgba(0,0,0,.8), inset 0 1px 0 rgba(255,255,255,.06);}
+  .srow.me{border-color:rgba(240,181,75,.55);
+          background-image:linear-gradient(180deg, rgba(240,181,75,.10) 0%, rgba(240,181,75,.02) 60%);}
+  .pl{font-family:'IBM Plex Mono'; font-size:16px; font-weight:700; color:var(--txt-dim);
+      width:30px; height:30px; flex:0 0 auto; display:flex; align-items:center; justify-content:center;}
+  .srow.me .pl{color:var(--gold);}
+  .pl.medal{border-radius:50%; color:#0C0C10; border:none;}
+  .pl.g1{background:#F0B54B;} .pl.g2{background:#C9CDD6;} .pl.g3{background:#C9884E;}
+  .smid{flex:1; min-width:0;}
+  .who{font-size:17px; font-weight:700; color:var(--cream); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .schamp{position:absolute; left:56px; right:13px; bottom:10px; font-family:'IBM Plex Mono'; font-size:10px;
+          color:var(--gold); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .schamp.dead{color:#8B8B9D; text-decoration:line-through; text-decoration-thickness:2px; text-decoration-color:currentColor;}
+  .spts{font-family:'IBM Plex Mono'; flex:0 0 auto; display:flex; align-items:baseline; gap:4px;}
+  .spts b{font-size:22px; font-weight:700; color:var(--cream);}
+  .spts i{font-style:normal; font-size:8.5px; letter-spacing:1px; color:var(--txt-dim); font-weight:700;}
+  .mvtab{position:absolute; z-index:1; left:-36px; top:50%; transform:translateY(-50%);
+         font-family:'IBM Plex Mono'; font-size:10.5px; font-weight:700; padding:5px 21px 5px 9px;
+         border-radius:9px 0 0 9px; background:#20202C; border:1px solid var(--card-line); border-right:none; white-space:nowrap;}
+  .mvtab.up{color:var(--green); background:rgba(38,58,44,.95); border-color:rgba(95,201,122,.4);}
+  .mvtab.dn{color:var(--red); background:rgba(58,34,32,.95); border-color:rgba(224,87,74,.4);}
+  .mvtab.fl{color:#5A5A68;}
+  .since{text-align:center; font-family:'IBM Plex Mono'; font-size:9px; letter-spacing:1.2px; color:#55555F; padding:2px 16px 0;}
+
+  /* ---------- tournament toggle ---------- */
+  .segwrap{flex:0 0 auto; padding:10px 16px 11px; border-bottom:1px solid var(--card-line);}
+  .seg{display:flex; background:var(--card); border:1px solid var(--card-line); border-radius:22px; padding:3px;}
+  .seg button{flex:1; background:none; border:none; color:var(--txt-dim); font-family:'IBM Plex Mono'; font-size:10px;
+              font-weight:700; letter-spacing:1px; padding:8px 6px; border-radius:18px; cursor:pointer;}
+  .seg button.on{background:var(--gold); color:#17130A;}
+
+  /* ---------- full bracket stage ---------- */
+  .stagewrap{flex:1; min-height:0; position:relative; overflow:hidden; touch-action:none; background:var(--bg);}
+  .stage{position:absolute; top:0; left:0; transform-origin:0 0; will-change:transform;}
+  .m{position:absolute; width:160px; border-radius:7px; overflow:hidden; background:var(--card);
+     border:1px solid var(--card-line); background-image:linear-gradient(180deg, rgba(255,255,255,.05) 0%, rgba(255,255,255,0) 50%);}
+  .mrow{display:flex; align-items:center; gap:6px; padding:6px 8px; height:31px; position:relative;}
+  .mrow + .mrow{border-top:1px solid var(--seam);}
+  .msd{font-family:'IBM Plex Mono'; font-size:8px; font-weight:600; color:var(--txt-dim); flex:0 0 auto;}
+  .mnm{font-size:10.5px; font-weight:700; text-transform:uppercase; color:var(--txt); flex:1; min-width:0;
+       white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .mfg{font-family:'IBM Plex Mono'; font-size:8.5px; font-weight:600; color:var(--txt-dim); flex:0 0 auto;}
+  .mrow.won{background:rgba(95,201,122,.13);}
+  .mrow.won .mnm{color:#E8FBEE;} .mrow.won .mfg,.mrow.won .msd{color:var(--green);}
+  .mrow.lost .mnm{color:#82828E; text-decoration:line-through; text-decoration-thickness:2px; text-decoration-color:currentColor;}
+  .mrow.lost .mfg,.mrow.lost .msd{color:#63636F;}
+  .mrow.tbd .mnm{color:var(--txt-dim); font-style:italic; font-weight:600; text-transform:none;}
+  .m.champ{width:186px; border-color:var(--gold-dim); box-shadow:0 0 22px -6px rgba(240,181,75,.5);}
+  .m.champ .mrow{height:35px;}
+  .regionlab{position:absolute; font-family:'IBM Plex Mono'; font-size:12px; letter-spacing:3px; color:var(--txt-dim);
+             white-space:nowrap; writing-mode:vertical-rl; transform:rotate(180deg); display:flex; align-items:center; justify-content:center;}
+  .roundlab{position:absolute; font-family:'IBM Plex Mono'; font-size:9.5px; letter-spacing:1.8px; color:#5C5C6B;
+            white-space:nowrap; text-align:center;}
+  .fitbtn{position:absolute; bottom:88px; right:14px; z-index:20; background:rgba(0,0,0,.72); color:var(--cream);
+          border:1px solid var(--card-line); border-radius:20px; padding:8px 14px; font-family:'IBM Plex Mono';
+          font-size:10px; font-weight:700; letter-spacing:1px; cursor:pointer;}
+
+  /* ---------- submit bar ---------- */
+  .submitbar{flex:0 0 auto; padding:10px 16px 84px; border-top:1px solid var(--card-line); background:var(--card);}
+  .submitrow{display:flex; align-items:center; gap:10px;}
+  .subprog{flex:1; font-size:11px; color:var(--txt-dim); font-family:'IBM Plex Mono';}
+  .subbtn{background:var(--gold); color:#17130A; border:none; padding:11px 18px; border-radius:10px;
+          font-weight:800; font-size:13px; cursor:pointer; font-family:'Archivo';}
+  .submsg{font-size:11px; margin-top:6px; font-family:'IBM Plex Mono';}
+
+  /* ---------- profile / sheets ---------- */
+  .body{padding:16px 16px 90px;}
+  .seclab{font-family:'IBM Plex Mono'; font-size:9.5px; letter-spacing:2px; color:var(--txt-dim); margin:22px 2px 10px;}
+  .seclab:first-child{margin-top:0;}
+  .tickets{font-size:17px; letter-spacing:3px; margin-top:8px; line-height:1;}
+  .tickets:empty{display:none;}
+  .yrow{position:relative; display:flex; align-items:center; gap:12px; background:var(--card);
+        border:1px solid var(--card-line); border-radius:11px; padding:11px 13px; min-height:56px; margin-bottom:8px;
+        background-image:linear-gradient(180deg, rgba(255,255,255,.045) 0%, rgba(255,255,255,0) 50%);}
+  .yrow.live{border-color:rgba(240,181,75,.55); background-image:linear-gradient(180deg, rgba(240,181,75,.10) 0%, rgba(240,181,75,.02) 60%);}
+  .ypl{font-family:'IBM Plex Mono'; font-size:16px; font-weight:700; color:var(--txt-dim); width:38px; height:38px;
+       flex:0 0 auto; display:flex; align-items:center; justify-content:center;}
+  .ypl.medal{font-size:27px;}
+  .yline{display:flex; align-items:baseline; gap:10px; min-width:0; flex:1;}
+  .yr{font-size:17px; font-weight:700; color:var(--cream); flex:0 0 auto;}
+  .ychamp{font-family:'IBM Plex Mono'; font-size:10px; color:var(--gold); min-width:0; white-space:nowrap;
+          overflow:hidden; text-overflow:ellipsis;}
+  .ychamp.hit{color:var(--green);}
+  .ychamp.miss{color:#8B8B9D; text-decoration:line-through; text-decoration-thickness:2px; text-decoration-color:currentColor;}
+  .livechip{font-family:'IBM Plex Mono'; font-size:9px; font-weight:700; letter-spacing:1px; color:var(--gold);
+            border:1px solid rgba(240,181,75,.45); border-radius:20px; padding:2px 6px;}
+  .flab{font-size:10px; color:var(--txt-dim); letter-spacing:1px; margin:12px 0 5px; font-weight:600;}
+  .fin{width:100%; background:var(--card); border:1px solid var(--card-line); border-radius:10px; padding:12px 13px;
+       color:var(--cream); font-size:16px; font-family:'Archivo';}
+  .fin:focus{outline:none; border-color:var(--gold);}
+  .fin:disabled{opacity:.4;}
+  .abtn{width:100%; margin-top:14px; background:var(--gold); color:#17130A; border:none; padding:13px;
+        border-radius:10px; font-weight:800; font-size:14px; cursor:pointer; font-family:'Archivo';}
+  .abtn.sec{background:transparent; border:1px solid var(--card-line); color:var(--txt); margin-top:9px;}
+  .abtn.quiet{background:transparent; border:none; color:var(--txt-dim); font-weight:600; font-size:12.5px;}
+
+  /* ---------- commissioner ---------- */
+  .tools{flex:0 0 auto; padding:0 16px 11px; border-bottom:1px solid var(--card-line);}
+  .searchwrap{position:relative;}
+  .search{width:100%; background:var(--card); border:1px solid var(--card-line); border-radius:10px;
+          padding:11px 38px 11px 12px; color:var(--cream); font-size:16px; font-family:'Archivo';}
+  .search:focus{outline:none; border-color:var(--gold);}
+  .clearq{position:absolute; right:7px; top:50%; transform:translateY(-50%); width:24px; height:24px; border-radius:50%;
+          background:var(--bg); border:1px solid var(--card-line); color:var(--txt-dim); display:none;
+          align-items:center; justify-content:center; cursor:pointer; font-size:12px;}
+  .clearq.show{display:flex;}
+  .chips{display:flex; gap:6px; margin-top:9px; overflow-x:auto; scrollbar-width:none;}
+  .chips::-webkit-scrollbar{display:none;}
+  .chip{flex:0 0 auto; font-family:'IBM Plex Mono'; font-size:9.5px; font-weight:700; letter-spacing:.8px;
+        padding:6px 11px; border-radius:20px; background:var(--card); border:1px solid var(--card-line);
+        color:var(--txt-dim); cursor:pointer; white-space:nowrap;}
+  .chip.on{background:var(--gold); border-color:var(--gold); color:#17130A;}
+  .crow{background:var(--card); border:1px solid var(--card-line); border-radius:11px; margin-bottom:8px; overflow:hidden;
+        background-image:linear-gradient(180deg, rgba(255,255,255,.045) 0%, rgba(255,255,255,0) 50%);}
+  .crow.open{border-color:rgba(240,181,75,.5);}
+  .ctop{display:flex; align-items:center; gap:11px; padding:11px 13px; cursor:pointer;}
+  .csd{font-family:'IBM Plex Mono'; font-size:10px; font-weight:700; color:var(--txt-dim); width:34px;
+       flex:0 0 auto; text-align:center; line-height:1.3;}
+  .csd b{display:block; font-size:15px; color:var(--cream); line-height:1.1;}
+  .cmid{flex:1; min-width:0;}
+  .cnm{font-size:14.5px; font-weight:700; color:var(--cream); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .csub{font-family:'IBM Plex Mono'; font-size:9.5px; color:var(--txt-dim); margin-top:3px;}
+  .cstate{font-family:'IBM Plex Mono'; font-size:10.5px; font-weight:700; flex:0 0 auto; text-align:right;}
+  .cstate.paid{color:var(--green);} .cstate.zero{color:var(--red);}
+  .cstate.due{color:#17130A; background:var(--gold); border-radius:20px; padding:4px 9px;}
+  .cstate.wait{color:var(--txt-dim);}
+  .cedit{display:none; padding:2px 13px 14px; border-top:1px solid var(--card-line);}
+  .crow.open .cedit{display:block;}
+  .money{display:flex; align-items:stretch;}
+  .money span{background:var(--bg); border:1px solid var(--card-line); border-right:none; border-radius:9px 0 0 9px;
+              padding:11px; font-family:'IBM Plex Mono'; color:var(--txt-dim);}
+  .money .fin{border-radius:0 9px 9px 0; font-family:'IBM Plex Mono';}
+  .reasons{display:flex; gap:6px; flex-wrap:wrap;}
+  .rz{font-family:'IBM Plex Mono'; font-size:9.5px; font-weight:700; padding:7px 10px; border-radius:20px;
+      background:var(--bg); border:1px solid var(--card-line); color:var(--txt-dim); cursor:pointer;}
+  .rz.on{background:rgba(224,87,74,.16); border-color:rgba(224,87,74,.55); color:var(--red);}
+  .rz.none.on{background:rgba(95,201,122,.14); border-color:rgba(95,201,122,.5); color:var(--green);}
+
+  /* ---------- overlays ---------- */
+  .overlay{position:absolute; inset:0; background:rgba(4,4,6,.92); z-index:60; display:none;
+           align-items:center; justify-content:center; padding:20px;}
+  .overlay.open{display:flex;}
+  .ocard{background:var(--card); border:1px solid var(--card-line); border-radius:16px; padding:22px 20px;
+         width:100%; max-width:360px; max-height:88vh; overflow-y:auto; position:relative;}
+  .ocard h2{font-size:21px; font-weight:800; color:var(--cream); margin-bottom:5px;}
+  .rules h3{font-size:13px; font-weight:800; color:var(--gold); margin:16px 0 6px; text-transform:uppercase;}
+  .rules h3:first-of-type{margin-top:0;}
+  .rules p{font-size:12.5px; line-height:1.6; color:var(--txt); margin-bottom:6px;}
+  .rules .dim{color:var(--txt-dim); font-style:italic; font-size:11.5px;}
+  .close-x{position:absolute; top:14px; right:14px; width:26px; height:26px; border-radius:50%; background:var(--bg);
+           border:1px solid var(--card-line); color:var(--txt-dim); display:flex; align-items:center;
+           justify-content:center; cursor:pointer; font-size:12px;}
+  .toast{position:absolute; left:50%; bottom:96px; transform:translateX(-50%) translateY(20px); opacity:0;
+         background:var(--green); color:#0C1A10; font-weight:800; font-size:13px; padding:10px 18px;
+         border-radius:22px; transition:.25s; pointer-events:none; z-index:80;}
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+  .stub{padding:36px 24px; text-align:center; color:var(--txt-dim); font-size:13px; line-height:1.7;}
+
+  /* ---------- season switcher + admin ---------- */
+  .seasonline{cursor:pointer;}
+  .caret{color:var(--gold); font-size:8px; margin-left:2px;}
+  .statechip{font-family:'IBM Plex Mono'; font-size:8px; letter-spacing:1px; color:var(--gold);
+             border:1px solid rgba(240,181,75,.45); border-radius:20px; padding:1px 5px; margin-left:5px;}
+  .snpick{display:flex; align-items:center; justify-content:space-between; gap:10px; background:var(--card);
+          border:1px solid var(--card-line); border-radius:11px; padding:13px 14px; margin-bottom:8px; cursor:pointer;}
+  .snpick.on{border-color:rgba(240,181,75,.55); background:rgba(240,181,75,.07);}
+  .snpick b{font-size:19px; font-weight:800; color:var(--cream);}
+  .sncard{background:var(--card); border:1px solid var(--card-line); border-radius:12px; padding:14px; margin-bottom:10px;}
+  .snhead{display:flex; align-items:center; justify-content:space-between; margin-bottom:7px;}
+  .snhead b{font-size:20px; font-weight:800; color:var(--cream);}
+  .snnote{font-family:'IBM Plex Mono'; font-size:10.5px; color:var(--txt-dim); line-height:1.65;}
+  .sncard .abtn{margin-top:12px;}
+  .snstate{font-family:'IBM Plex Mono'; font-size:9px; font-weight:700; letter-spacing:1px;
+           padding:3px 8px; border-radius:20px; border:1px solid currentColor;}
+  .st-live{color:var(--green);} .st-open{color:var(--gold);}
+  .st-ended{color:var(--txt-dim);} .st-setup{color:var(--txt-dim);}
+
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ================= MY BRACKET ================= -->
+  <div class="screen on" id="s-bracket">
+    <div class="header">
+      <div class="back" id="bkBack" style="display:none;">‹</div>
+      <div class="season seasonline">2026 BOX OFFICE TOURNAMENT <span class="caret">▾</span></div>
+      <div class="hbar">
+        <div class="hleft">
+          <div class="rd" id="bkRound">Round 1</div>
+          <div class="rdpts" id="bkRoundPts"><b>0</b> PTS</div>
+        </div>
+        <div class="hright">
+          <button class="pill" data-pill><span id="bkName">Jason</span><span class="rk" id="bkRank">4TH</span></button>
+          <div class="tot"><span class="lab">TOTAL PTS</span><span class="num" id="bkTotal">0</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="bracket-body" id="bkHost"></div>
+  </div>
+
+  <!-- ================= STANDINGS ================= -->
+  <div class="screen" id="s-standings">
+    <div class="header">
+      <div class="season seasonline">2026 BOX OFFICE TOURNAMENT <span class="caret">▾</span></div>
+      <div class="hbar base">
+        <div class="hleft"><div class="rd">Standings</div></div>
+        <div class="whoami" id="whoCount">14 PLAYERS</div>
+      </div>
+    </div>
+    <div class="scroller" id="standScroll">
+      <div class="slist" id="slist"></div>
+      <div class="since" id="since"></div>
+      <div class="padbottom"></div>
+    </div>
+  </div>
+
+  <!-- ================= TOURNAMENT ================= -->
+  <div class="screen" id="s-tournament">
+    <div class="header">
+      <div class="season seasonline">2026 BOX OFFICE TOURNAMENT <span class="caret">▾</span></div>
+      <div class="hbar base">
+        <div class="hleft"><div class="rd" id="tRound">Round 1</div></div>
+        <div class="whoami" id="tWho">MASTER BRACKET</div>
+      </div>
+    </div>
+    <div class="segwrap"><div class="seg">
+      <button id="tSegMaster" class="on">ROUND BY ROUND</button>
+      <button id="tSegFull">FULL BRACKET</button>
+    </div></div>
+    <div class="bracket-body" id="tMaster"><div class="bracket-body" id="tMasterHost"></div></div>
+    <div class="stagewrap" id="tFull" style="display:none;"></div>
+  </div>
+
+  <!-- ================= 2027 FILL ================= -->
+  <div class="screen" id="s-fill">
+    <div class="header">
+      <div class="season">2027 · FILL YOUR BRACKET</div>
+      <div class="hbar base">
+        <div class="hleft"><div class="rd" id="fillRound">Round 1</div></div>
+        <div class="whoami">DUE JAN 1</div>
+      </div>
+    </div>
+    <div class="bracket-body" id="fillHost"></div>
+    <div class="submitbar">
+      <div class="submitrow">
+        <div class="subprog" id="fillProg">32 picks left in Round 1</div>
+        <button class="subbtn" id="fillSubmit">Submit</button>
+      </div>
+      <div class="submsg" id="fillMsg"></div>
+    </div>
+  </div>
+
+  <!-- ================= NAV ================= -->
+  <div class="nav" id="nav">
+    <button class="on" data-s="bracket">
+      <svg viewBox="0 0 24 24"><path d="M3 4h7v3H3zM3 10h7v3H3zM3 16h7v3H3z" opacity=".55"/><path d="M12 5.5h4v13h-4z" opacity=".8"/><path d="M18 10h3v4h-3z"/></svg>MY BRACKET</button>
+    <button data-s="standings">
+      <svg viewBox="0 0 24 24"><path d="M4 13h4v8H4zM10 8h4v13h-4zM16 3h4v18h-4z"/></svg>STANDINGS</button>
+    <button data-s="tournament">
+      <svg viewBox="0 0 24 24"><path d="M6 3h12v2a6 6 0 0 1-5 5.9V14h3v3H8v-3h3v-3.1A6 6 0 0 1 6 5zM3 4h2v3a2 2 0 0 1-2-2zM19 4h2a2 2 0 0 1-2 2zM7 19h10v2H7z"/></svg>TOURNAMENT</button>
+    <button data-s="fill" id="navFill" style="display:none;">
+      <svg viewBox="0 0 24 24"><path d="M4 3h13l3 3v15H4z" opacity=".55"/><path d="M8 11h8v2H8zM8 15h5v2H8z"/><path d="M14 3v4h4"/></svg>2027<span class="dot" id="fillDot"></span></button>
+  </div>
+
+  <!-- ================= SHEETS ================= -->
+  <div class="overlay" id="sheet-profile">
+    <div class="ocard">
+      <div class="close-x" onclick="closeSheet('profile')">✕</div>
+      <div style="text-align:center;margin-bottom:6px;">
+        <div class="rd" id="pfName" style="font-size:24px;">Jason</div>
+        <div class="tickets" id="pfStars"></div>
+      </div>
+      <div class="seclab" style="margin-top:18px;">SEASONS</div>
+      <div id="pfSeasons"></div>
+      <div id="pfAccount">
+        <div class="seclab">ACCOUNT</div>
+        <div class="flab">YOUR NAME</div><input class="fin" value="Jason">
+        <div class="flab">EMAIL</div><input class="fin" value="nerdwithapencil@gmail.com">
+        <button class="abtn" onclick="toast('Saved')">Save Changes</button>
+      </div>
+      <button class="abtn sec" onclick="closeSheet('profile');showSheet('rules')">Full Rules</button>
+      <button class="abtn sec" id="pfComm" onclick="closeSheet('profile');showSheet('commissioner')">Commissioner · Scores</button>
+      <button class="abtn sec" id="pfSeasonsBtn">Commissioner · Seasons</button>
+    </div>
+  </div>
+
+  <div class="overlay" id="sheet-rules">
+    <div class="ocard rules">
+      <div class="close-x" onclick="closeSheet('rules')">✕</div>
+      <h2>RULES</h2>
+      <p class="dim" style="margin-bottom:14px;">64 movies, 4 brackets, single elimination.</p>
+      <h3>Scoring</h3>
+      <p>A movie's score is its real opening weekend (domestic). Once it has a score it keeps it all year. When both movies in a matchup have opened, the higher score advances.</p>
+      <h3>Points</h3>
+      <p>Round 1: 1 pt · Round 2: 2 · Round 3: 4 · Quarter-Finals: 8 · Semi-Finals: 16 · Champion: 32. Every round is worth 32 in total, so a perfect bracket is 192.</p>
+      <h3>Wrong picks don't end your bracket</h3>
+      <p>If the movie you picked is the real winner of a later matchup, you score for it — even if you got the round before it wrong.</p>
+      <h3>When a movie scores $0</h3>
+      <p>Pushed to next year, cancelled outright, or released straight to streaming.</p>
+      <h3>Ties</h3>
+      <p>The only way to tie is for both films to score $0. Nobody scores and neither advances — an empty slot then counts as a $0 competitor, so whoever it meets next has to post a score above zero to get through.</p>
+    </div>
+  </div>
+
+  <div class="overlay" id="sheet-commissioner">
+    <div class="ocard" style="max-width:420px;padding:16px 14px;">
+      <div class="close-x" onclick="closeSheet('commissioner')">✕</div>
+      <h2 style="text-align:center;margin-bottom:12px;">COMMISSIONER</h2>
+      <div class="searchwrap">
+        <input class="search" id="cq" placeholder="Search a film…">
+        <div class="clearq" id="cclear">✕</div>
+      </div>
+      <div class="chips" id="cchips"></div>
+      <div id="clist" style="margin-top:12px;"></div>
+    </div>
+  </div>
+
+  <div class="overlay" id="sheet-seasons">
+    <div class="ocard">
+      <div class="close-x" onclick="closeSheet('seasons')">✕</div>
+      <h2>SEASON</h2>
+      <p style="font-size:12px;color:var(--txt-dim);margin-bottom:14px;">Finished seasons stay readable.</p>
+      <div id="seasonPick"></div>
+    </div>
+  </div>
+
+  <div class="overlay" id="sheet-seasonadmin">
+    <div class="ocard">
+      <div class="close-x" onclick="closeSheet('seasonadmin')">✕</div>
+      <h2>SEASONS</h2>
+      <p style="font-size:12px;color:var(--txt-dim);margin-bottom:14px;">Nothing moves on a date. Every change is a button here.</p>
+      <div id="seasonList"></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast">Saved</div>
+</div>
+
+<script>
+/* =========================================================================
+   DATA — a season is a list of films plus a cutoff date. Everything else
+   (who advanced, who's out, what anyone scored) is derived, never stored.
+   ========================================================================= */
+const bracketNames=["Bracket 1","Bracket 2","Bracket 3","Bracket 4"];
+const seedOrder=[1,16,8,9,5,12,4,13,6,11,3,14,7,10,2,15];
+const TITLES=[
+ ["Avengers: Doomsday","Mercy","The Angry Birds Movie 3","Goat","Dr. Seuss' The Cat in the Hat","Young Washington","Michael","Focker-In-Law","Street Fighter","Practical Magic 2","Hexed","Cut Off","Scream 7","Return to Silent Hill","The Super Mario Galaxy Movie","Soulm8te"],
+ ["Toy Story 5","Crime 101","PAW Patrol: The Dino Movie","Untitled Spielberg Film","Animal Friends","The Dog Stars","Forgotten Island","The Breadwinner","The Odyssey","Werwulf","Moana","Remain","Insidious 6","Evil Dead Burn","Dune: Part Three","Shiver"],
+ ["The Mandalorian & Grogu","Reminders of Him","The Devil Wears Prada 2","The Bride!","Project Hail Mary","The Social Reckoning","Hoppers","Archangel","Mortal Kombat II","28 Years Later: The Bone Temple","Masters of the Universe","Cliffhanger","Violent Night 2","Wuthering Heights","The Hunger Games: Sunrise on the Reaping","The Drama"],
+ ["Spider-Man: Brand New Day","Power Ballad","Clayface","Ready or Not 2: Here I Come","The Mummy","Whitney Springs","The Legend of Aang: The Last Airbender","4 Kids Walk Into a Bank","Narnia: The Magician's Nephew","Scary Movie 6","Jumanji 4","Greenland 2: Migration","Coyote vs Acme","Resident Evil","Supergirl: Woman of Tomorrow","The Sheep Detectives"]];
+const NEXT_TITLES=[
+ ["Star Wars: New Jedi Order","The Ballad of Wren","Frozen III","Bluey: The Movie","Sinners 2","The Long Walk","Grave Tide","Paper Cities","Beetlejuice 3","Vandal","Untitled PTA Film","Sunfall","Saw XI","The Quiet Place: Day Two","Shrek 5","Nightbitch 2"],
+ ["Minions 4","Wicked: Elphaba","The Last Ronin","Salt Lake","Tron: Legacy Reborn","Bone Country","Fast X: Part 3","The Lighthouse Keeper","Blade","Chariot","Godzilla x Kong: Empire","Weathering","Hunger","Ash Wednesday","Avatar: Fire and Ash 2","Little Devils"],
+ ["Batman: The Brave","Ratatouille 2","Dune: Messiah","The Hollow","Superman: Legacy 2","Karate Kid Legends 2","The Pact","Slow Horses: The Film","Mission: Impossible 9","Bridget","Zelda","Cold Harbour","The Conjuring 5","Ironbound","Elio 2","The Understudy"],
+ ["Deadpool 4","The Cartographer","Inside Out 3","Wolfsong","Gladiator III","Ninth Street","Jurassic World: Rebirth 2","Tenement","How to Train Your Dragon 2","Marrow","Encanto 2","The Gunslinger","Us Again","Halloween Returns","Moana 3","Dogwood"]];
+
+const roundsInfo=[
+  {name:"Round 1",pts:1,pairs:32},{name:"Round 2",pts:2,pairs:16},
+  {name:"Round 3",pts:4,pairs:8},{name:"Quarter-Finals",pts:8,pairs:4},
+  {name:"Semi-Finals",pts:16,pairs:2},{name:"Championship",pts:32,pairs:1}];
+const NR=6;
+const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const pow2=r=>1<<r;
+
+function rng(seed){ let s=seed; return ()=>{ s|=0; s=s+0x6D2B79F5|0;
+  let t=Math.imul(s^s>>>15,1|s); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+
+function buildSeason(year, titles, seed){
+  const rnd=rng(seed); let id=0;
+  const movies=[];
+  titles.forEach((list,b)=>list.forEach((name,i)=>{
+    const m={id:year+'-'+(id++), name, seed:seedOrder[i], bracket:b+1};
+    m.date=new Date(year,0,4+Math.floor(rnd()*355));
+    m.finalScore=Math.round(Math.max(1.1,175*Math.exp(-0.17*(m.seed-1))*(0.55+rnd()*0.95))*100)/100;
+    m.zero=null;
+    movies.push(m);
+  }));
+  return {year, movies, today:new Date(year,11,31)};
+}
+
+const SEASON = buildSeason(2026, TITLES, 20260812);
+SEASON.today = new Date(2026,7,12);
+SEASON.movies[6].zero='pushed to 2027';
+SEASON.movies[7].zero='cancelled';
+SEASON.movies[29].zero='streaming';
+SEASON.movies[44].zero='pushed to 2027';
+SEASON.movies.forEach(m=>{ if(m.zero) m.finalScore=0; });
+
+const NEXT = buildSeason(2027, NEXT_TITLES, 20271111);
+NEXT.today = new Date(2026,7,12);          // nothing has opened yet
+
+const fmtDate=d=>`opens ${MONTHS[d.getMonth()]} ${d.getDate()}`;
+const shortDate=d=>`${MONTHS[d.getMonth()]} ${d.getDate()}`;
+
+/* ---- resolution, identical for every screen ---- */
+function makeResolver(season, cutoff){
+  const isOut = m => m.zero ? true : m.date<=cutoff;
+  const scoreOf = m => isOut(m) ? m.finalScore : null;
+  const cache={};
+  const res=(r,i)=>{
+    const k=r+':'+i; if(cache[k]) return cache[k];
+    let a,b,done=false,winner=null,tie=false;
+    if(r===1){
+      a=season.movies[i*2]; b=season.movies[i*2+1];
+      const sa=scoreOf(a), sb=scoreOf(b);
+      if(sa!=null&&sb!=null){ done=true; if(sa===sb) tie=true; else winner = sa>sb?a:b; }
+    } else {
+      const A=res(r-1,i*2), B=res(r-1,i*2+1);
+      a=A.winner; b=B.winner;
+      if(A.done&&B.done){
+        done=true;
+        if(a&&b){ const sa=scoreOf(a), sb=scoreOf(b); if(sa===sb) tie=true; else winner = sa>sb?a:b; }
+        else if(a||b){ const solo=a||b, ss=scoreOf(solo);
+          if(ss==null) done=false; else if(ss>0) winner=solo; else tie=true; }
+        else tie=true;
+      }
+    }
+    return cache[k]={a,b,done,winner,tie};
+  };
+  res.isOut=isOut; res.scoreOf=scoreOf;
+  return res;
+}
+
+function elimByRound(resolve){
+  const elim={};
+  for(let r=1;r<=NR;r++) for(let i=0;i<roundsInfo[r-1].pairs;i++){
+    const x=resolve(r,i); if(!x.done) continue;
+    const out=[];
+    if(x.tie){ if(x.a) out.push(x.a); if(x.b) out.push(x.b); }
+    else if(x.winner) out.push(x.winner===x.a?x.b:x.a);
+    out.forEach(m=>{ if(m && elim[m.id]===undefined) elim[m.id]=r; });
+  }
+  return elim;
+}
+
+/* ---- a submitted bracket ---- */
+function makePicks(season, resolveFinal, seed, skill){
+  const rnd=rng(seed), picks={1:[],2:[],3:[],4:[],5:[],6:[]};
+  for(let i=0;i<32;i++){
+    const a=season.movies[i*2], b=season.movies[i*2+1], w=resolveFinal(1,i).winner;
+    if(!w){ picks[1][i]=a; continue; }
+    picks[1][i] = rnd()<skill ? w : (w===a?b:a);
+  }
+  for(let r=2;r<=NR;r++) for(let i=0;i<roundsInfo[r-1].pairs;i++){
+    const a=picks[r-1][i*2], b=picks[r-1][i*2+1], w=resolveFinal(r,i).winner;
+    picks[r][i] = (w===a||w===b) ? w : (rnd()<0.5?a:b);
+  }
+  return picks;
+}
+
+function pickState(resolve, elim, picks, r, i){
+  const M=picks[r][i]; if(!M) return 'pending';
+  const x=resolve(r,i);
+  if(x.done) return x.winner===M ? 'correct' : 'dead';
+  return (elim[M.id]!==undefined && elim[M.id]<=r) ? 'dead' : 'pending';
+}
+function scoreBracket(resolve, elim, picks){
+  let total=0; const per=[];
+  for(let r=1;r<=NR;r++){
+    let t=0;
+    for(let i=0;i<roundsInfo[r-1].pairs;i++)
+      if(pickState(resolve,elim,picks,r,i)==='correct') t+=roundsInfo[r-1].pts;
+    per[r]=t; total+=t;
+  }
+  return {total, per};
+}
+
+/* =========================================================================
+   BRACKET ENGINE — one instance per screen.
+   pitch(r) = BASE * 2^(r - focus): spacing doubles each round, so a matchup
+   always sits exactly on the midpoint of the two that feed it. Alignment is
+   a property of the maths, not something anyone has to calculate.
+   ========================================================================= */
+const GAP=14, LABEL_H=22, TAB_H=22, TOP_PAD=30, MIN_BASE=104;
+const SWIPE_MIN=14, DOMINANCE=1.8, COMMIT=0.30, FLICK=0.55, SLIDE_MS=300;
+
+function createBracket(host, cfg){
+  const V = {
+    focus:1, targetFocus:1, focusAnim:null, BASE:MIN_BASE, currentRound:1, colW:0,
+    colIndex:0, dragX:0, axis:null, slideAnim:null, p0:null, els:{}, ro:null, roQueued:false, dead:false
+  };
+  host.innerHTML = `<div class="viewport"><div class="plane"></div></div>`;
+  const view = host.querySelector('.viewport');
+  const plane = host.querySelector('.plane');
+
+  const pitch = r => V.BASE*Math.pow(2, r-V.focus);
+  const centerOf = (r,i) => TOP_PAD+(i+0.5)*pitch(r);
+  const groupLabel = (r,i) => {
+    if(r>=4) return null;
+    const per=roundsInfo[r-1].pairs/4;
+    return i%per===0 ? bracketNames[Math.floor(i/per)] : null;
+  };
+
+  /* ---------- what a matchup looks like, per mode ---------- */
+  function halfMine(m, r, isMine, state, tie, showReason){
+    let cls='half ' + (isMine ? 'mine '+state : 'other');
+    if(cfg.elim && cfg.elim[m.id]!==undefined && cfg.elim[m.id]<=r) cls+=' gone';
+    const sc=cfg.resolve.scoreOf(m);
+    const fig = sc!=null
+      ? `<span class="fig ${sc>0?'paid':''}">$${sc.toFixed(2)}M${(showReason&&m.zero)?' · '+m.zero:''}</span>`
+      : `<span class="fig">${fmtDate(m.date)}</span>`;
+    const seed = r===1 ? `<span class="sd">${m.seed}</span>` : '';
+    const tt = tie ? '<span class="tietag">TIE · NO ADVANCE</span>' : '';
+    const top = (seed||tt) ? `<div class="toprow">${seed}${tt}</div>` : '';
+    return `<div class="${cls}">${top}<span class="ttl">${m.name}</span>${fig}</div>`;
+  }
+  function halfMaster(sl, res, tie){
+    if(sl.kind==='tbd')
+      return `<div class="half neutral tbd"><span class="ttl">TBD</span>
+        <span class="fig">${sl.by?shortDate(sl.by):''}</span></div>`;
+    if(sl.kind==='tie')
+      return `<div class="half neutral tieslot"><div class="toprow"><span class="tietag">NO ADVANCE</span></div>
+        <span class="ttl">Tie</span><span class="fig">$0.00M</span></div>`;
+    const m=sl.m, sc=cfg.resolve.scoreOf(m);
+    let cls='half';
+    if(tie) cls+=' lost';
+    else if(res.done&&res.winner) cls += (res.winner===m?' won':' lost');
+    else cls+=' neutral';
+    const fig = sc!=null
+      ? `<span class="fig ${sc>0?'paid':''}">$${sc.toFixed(2)}M${(sc===0&&m.zero)?' · '+m.zero:''}</span>`
+      : `<span class="fig">${fmtDate(m.date)}</span>`;
+    const seed = sl.round===1 ? `<span class="sd">${m.seed}</span>` : '';
+    const tt = tie ? '<span class="tietag">TIE · NO ADVANCE</span>' : '';
+    const top = (seed||tt) ? `<div class="toprow">${seed}${tt}</div>` : '';
+    return `<div class="${cls}">${top}<span class="ttl">${m.name}</span>${fig}</div>`;
+  }
+  function slotOf(r,i,side){
+    if(r===1) return {kind:'movie', round:1, m:cfg.season.movies[side==='a'?i*2:i*2+1]};
+    const fi = side==='a'?i*2:i*2+1, f=cfg.resolve(r-1,fi);
+    if(!f.done){
+      const start=fi*pow2(r-1), end=start+pow2(r-1);
+      let d=null;
+      for(let k=start;k<end;k++){ const m=cfg.season.movies[k];
+        if(cfg.resolve.isOut(m)) continue; if(!d||m.date>d) d=m.date; }
+      return {kind:'tbd', by:d};
+    }
+    if(!f.winner) return {kind:'tie'};
+    return {kind:'movie', round:r, m:f.winner};
+  }
+  const pairOf = (r,i) => r===1
+    ? [cfg.season.movies[i*2], cfg.season.movies[i*2+1]]
+    : [cfg.picks[r-1][i*2], cfg.picks[r-1][i*2+1]];
+
+  function buildCol(r){
+    const info=roundsInfo[r-1]; let h='';
+    for(let i=0;i<info.pairs;i++){
+      const lab=groupLabel(r,i);
+      if(lab) h+=`<div class="group-label" data-i="${i}">${lab}</div>`;
+
+      if(cfg.mode==='master'){
+        const res=cfg.resolve(r,i), tie=res.done&&res.tie;
+        h+=`<div class="unit" data-i="${i}">${halfMaster(slotOf(r,i,'a'),res,tie)}${halfMaster(slotOf(r,i,'b'),res,tie)}</div>`;
+        continue;
+      }
+      const [a,b]=pairOf(r,i);
+      if(cfg.mode==='fill'){
+        if(!a||!b){
+          h+=`<div class="unit locked" data-i="${i}"><div class="lockmsg">Finish ${roundsInfo[r-2].name} to unlock</div></div>`;
+          continue;
+        }
+        const p=cfg.picks[r][i];
+        const sa=p===undefined?'':(p===a?'win':'lose'), sb=p===undefined?'':(p===b?'win':'lose');
+        h+=`<div class="unit" data-i="${i}">
+          <div class="half pick ${sa}" data-r="${r}" data-i="${i}" data-m="${a.id}"><span class="sd">${a.seed}</span><span class="ttl">${a.name}</span></div>
+          <div class="half pick ${sb}" data-r="${r}" data-i="${i}" data-m="${b.id}"><span class="sd">${b.seed}</span><span class="ttl">${b.name}</span></div>
+        </div>`;
+        continue;
+      }
+      /* mode 'mine' */
+      if(!a||!b){                                   // someone who never finished their bracket
+        h+=`<div class="unit locked" data-i="${i}"><div class="lockmsg">No pick made</div></div>`;
+        continue;
+      }
+      const mine=cfg.picks[r][i], state=pickState(cfg.resolve,cfg.elim,cfg.picks,r,i), res=cfg.resolve(r,i);
+      if(state!=='pending'){
+        const pts = state==='correct' ? info.pts : 0;
+        h+=`<div class="ptab ${state==='correct'?'good':'zero'}" data-i="${i}">${pts} PTS</div>`;
+      }
+      h+=`<div class="unit" data-i="${i}">
+        ${halfMine(a,r,mine===a,state,res.tie,r===1)}${halfMine(b,r,mine===b,state,res.tie,r===1)}</div>`;
+    }
+    return h;
+  }
+
+  function build(){
+    plane.innerHTML='';
+    for(let r=1;r<=NR;r++){
+      const col=document.createElement('div');
+      col.className='col'; col.dataset.round=r; col.innerHTML=buildCol(r);
+      plane.appendChild(col);
+    }
+    const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+    svg.setAttribute('class','lines'); plane.appendChild(svg);
+    cache();
+  }
+  function cache(){
+    for(let r=1;r<=NR;r++){
+      const col=plane.querySelector(`.col[data-round="${r}"]`);
+      V.els[r]={col, units:[...col.querySelectorAll('.unit')],
+        labels:[...col.querySelectorAll('.group-label')].map(el=>({el,i:+el.dataset.i})),
+        tabs:[...col.querySelectorAll('.ptab')].map(el=>({el,i:+el.dataset.i}))};
+    }
+    observe();
+  }
+  /* Cards change height when a title wraps or a winner's type scales up.
+     Positions are transforms, which don't affect measured height, so watching
+     the cards can't feed back on itself. */
+  function observe(){
+    if(V.ro) V.ro.disconnect();
+    if(typeof ResizeObserver==='undefined') return;
+    V.ro=new ResizeObserver(()=>{
+      if(V.roQueued||V.dead) return; V.roQueued=true;
+      requestAnimationFrame(()=>{ V.roQueued=false; relayout(); });
+    });
+    for(let r=1;r<=NR;r++) V.els[r]?.units.forEach(u=>V.ro.observe(u));
+  }
+  const tallest=()=>{ let m=0;
+    for(let r=1;r<=NR;r++) (V.els[r]?.units||[]).forEach(u=>m=Math.max(m,u.offsetHeight));
+    return m||92; };
+
+  function layout(){
+    V.colW=view.clientWidth || host.clientWidth || 380;
+    V.BASE=Math.max(MIN_BASE, tallest()+GAP+LABEL_H+(cfg.mode==='mine'?TAB_H:0));
+    let planeH=0;
+    for(let r=1;r<=NR;r++){
+      const E=V.els[r]; if(!E) continue;
+      const P=pitch(r), fit=nat=>Math.max(.08,Math.min(1,P/(nat+GAP)));
+      E.units.forEach((u,i)=>{
+        const nat=u.offsetHeight, s=fit(nat), c=centerOf(r,i);
+        u.style.top=(c-nat/2)+'px';
+        u.style.transform = s<0.999 ? `scaleY(${s})` : '';
+        planeH=Math.max(planeH, c+nat*s/2);
+      });
+      const hasTab={};
+      E.tabs.forEach(({el,i})=>{ const u=E.units[i]; if(!u) return; hasTab[i]=true;
+        const nat=u.offsetHeight, s=fit(nat);
+        el.style.top=(centerOf(r,i)-nat*s/2-19)+'px';
+        el.style.opacity = s>0.6?1:Math.max(0,(s-.35)/.25); });
+      E.labels.forEach(({el,i})=>{ const u=E.units[i]; if(!u) return;
+        const nat=u.offsetHeight, s=fit(nat);
+        el.style.top=(centerOf(r,i)-nat*s/2-19-(hasTab[i]?23:0))+'px';
+        el.style.opacity = s>0.6?1:Math.max(0,(s-.35)/.25); });
+    }
+    plane.style.height=Math.max(planeH+TOP_PAD, view.clientHeight||600)+'px';
+    plane.style.width=(V.colW*NR)+'px';
+    for(let r=1;r<=NR;r++) if(V.els[r]) V.els[r].col.style.width=V.colW+'px';
+    applyX(baseX()+V.dragX);
+    drawLines();
+  }
+  function drawLines(){
+    const svg=plane.querySelector('.lines'); if(!svg) return;
+    const H=parseFloat(plane.style.height)||0, W=V.colW;
+    svg.setAttribute('width',W*NR); svg.setAttribute('height',H);
+    let d='';
+    for(let r=1;r<NR;r++){
+      const info=roundsInfo[r-1];
+      const xOut=(r-1)*W+(W-46), xIn=r*W+16, xMid=(xOut+xIn)/2;
+      for(let j=0;j<info.pairs/2;j++){
+        const yA=centerOf(r,j*2), yB=centerOf(r,j*2+1), yP=centerOf(r+1,j);
+        d+=`M${xOut},${yA} H${xMid} M${xOut},${yB} H${xMid} M${xMid},${yA} V${yB} M${xMid},${yP} H${xIn} `;
+      }
+    }
+    svg.innerHTML=`<path d="${d}" stroke="var(--gold-dim)" stroke-width="1.6" fill="none" stroke-linecap="round" opacity="0.85"/>`;
+  }
+
+  /* keep one matchup pinned while everything else moves */
+  function capture(r){
+    const E=V.els[r]; if(!E||!E.units.length) return null;
+    const eye=view.scrollTop+view.clientHeight/2;
+    let best=0,bd=Infinity;
+    E.units.forEach((u,i)=>{ const d=Math.abs(centerOf(r,i)-eye); if(d<bd){bd=d;best=i;} });
+    return {r,i:best,y:centerOf(r,best)-view.scrollTop};
+  }
+  function restore(a){
+    if(!a) return;
+    const max=Math.max(0,(parseFloat(plane.style.height)||0)-view.clientHeight);
+    view.scrollTop=Math.max(0,Math.min(max, centerOf(a.r,a.i)-a.y));
+  }
+  function relayout(){ const a=capture(Math.round(V.focus)); layout(); restore(a); }
+  function animateFocus(to){
+    cancelAnimationFrame(V.focusAnim);
+    const from=V.focus, t0=performance.now(), a=capture(to);
+    V.targetFocus=to;
+    const step=now=>{
+      const p=Math.min(1,(now-t0)/620), e=1-Math.pow(1-p,3);
+      V.focus=from+(to-from)*e; layout(); restore(a);
+      if(p<1) V.focusAnim=requestAnimationFrame(step);
+    };
+    V.focusAnim=requestAnimationFrame(step);
+  }
+
+  /* horizontal paging is ours, so an angled swipe can't change rounds */
+  const baseX=()=>-V.colIndex*V.colW;
+  function applyX(px){ plane.style.transform=`translateX(${px}px)`; }
+  view.addEventListener('pointerdown', e=>{
+    if(e.pointerType==='mouse'&&e.button!==0) return;
+    cancelAnimationFrame(V.slideAnim);
+    V.p0={x:e.clientX,y:e.clientY,t:performance.now()}; V.axis=null; V.dragX=0;
+  });
+  view.addEventListener('pointermove', e=>{
+    if(!V.p0) return;
+    const dx=e.clientX-V.p0.x, dy=e.clientY-V.p0.y;
+    if(V.axis===null){
+      if(Math.abs(dx)<SWIPE_MIN&&Math.abs(dy)<SWIPE_MIN) return;
+      V.axis=(Math.abs(dx)>Math.abs(dy)*DOMINANCE)?'x':'y';
+      if(V.axis==='y'){ V.p0=null; return; }
+    }
+    let d=dx;
+    if((V.colIndex===0&&d>0)||(V.colIndex===NR-1&&d<0)) d*=0.32;
+    V.dragX=d; applyX(baseX()+d);
+  }, {passive:true});
+  view.addEventListener('pointerup', ()=>{
+    if(!V.p0||V.axis!=='x'){ V.p0=null; V.axis=null; return; }
+    const dt=Math.max(1,performance.now()-V.p0.t), v=V.dragX/dt;
+    let t=V.colIndex;
+    if(Math.abs(V.dragX)>V.colW*COMMIT||Math.abs(v)>FLICK) t=V.colIndex-Math.sign(V.dragX);
+    V.p0=null; V.axis=null; slideTo(Math.max(0,Math.min(NR-1,t)));
+  });
+  view.addEventListener('pointercancel', ()=>{ V.p0=null; V.axis=null; slideTo(V.colIndex); });
+
+  function slideTo(idx){
+    const from=baseX()+V.dragX; V.colIndex=idx; V.dragX=0;
+    const to=baseX(), t0=performance.now();
+    cancelAnimationFrame(V.slideAnim);
+    const step=now=>{
+      const p=Math.min(1,(now-t0)/SLIDE_MS), e=1-Math.pow(1-p,3);
+      applyX(from+(to-from)*e);
+      if(p<1) V.slideAnim=requestAnimationFrame(step);
+      else{
+        const r=V.colIndex+1;
+        if(r!==V.currentRound){ V.currentRound=r; cfg.onRound && cfg.onRound(r); }
+        if(Math.abs(V.targetFocus-r)>0.01||Math.abs(V.focus-r)>0.01) animateFocus(r);
+      }
+    };
+    V.slideAnim=requestAnimationFrame(step);
+  }
+
+  /* picking, fill mode only */
+  if(cfg.mode==='fill'){
+    view.addEventListener('click', e=>{
+      const half=e.target.closest('.half.pick'); if(!half) return;
+      const r=+half.dataset.r, i=+half.dataset.i, id=half.dataset.m;
+      const [a,b]=pairOf(r,i);
+      const chosen = a && a.id===id ? a : b;
+      if(cfg.picks[r][i]===chosen) return;
+      const prev=cfg.picks[r][i];
+      cfg.picks[r][i]=chosen;
+      if(prev!==undefined){                       // only clear what actually depended on it
+        let rr=r+1, ii=Math.floor(i/2), gone=prev;
+        while(rr<=NR){
+          const cur=cfg.picks[rr]?cfg.picks[rr][ii]:undefined;
+          if(cur===undefined||cur!==gone) break;
+          cfg.picks[rr][ii]=undefined; gone=cur; ii=Math.floor(ii/2); rr++;
+        }
+      }
+      const hv=V.els[r].units[i].querySelectorAll('.half');
+      hv[0].classList.remove('win','lose'); hv[1].classList.remove('win','lose');
+      hv[0].classList.add(chosen===a?'win':'lose');
+      hv[1].classList.add(chosen===b?'win':'lose');
+      for(let k=r+1;k<=NR;k++) V.els[k].col.innerHTML=buildCol(k);
+      cache(); relayout();
+      cfg.onPick && cfg.onPick();
+    });
+  }
+
+  build(); layout();
+  return {
+    relayout, layout, rebuild(){ build(); layout(); },
+    round:()=>V.currentRound,
+    viewport:view,
+    destroy(){ V.dead=true; if(V.ro) V.ro.disconnect(); }
+  };
+}
+
+/* =========================================================================
+   FULL BRACKET — mirrored, pan and pinch. Brackets 1 & 2 run left-to-right
+   down the left, 3 & 4 right-to-left down the right, meeting in the middle.
+   In the data the first half of each round is the left side, so the split
+   is only an index test.
+   ========================================================================= */
+const CARD_W=160, ROW_H=31, CARD_H=ROW_H*2, COL_GAP=32, ROW_PITCH=70;
+const PAD_X=52, PAD_TOP=64, PAD_BOT=40, REGION_GAP=64, COLS=11;
+const colX = c => PAD_X + c*(CARD_W+COL_GAP);
+const STAGE_W = PAD_X*2 + COLS*CARD_W + (COLS-1)*COL_GAP;
+const STAGE_H = PAD_TOP + 16*ROW_PITCH + REGION_GAP + PAD_BOT;
+const rowY = c => PAD_TOP + c*ROW_PITCH + (c>8?REGION_GAP : c===8?REGION_GAP/2 : 0);
+
+function createFullBracket(host, season, resolve){
+  host.innerHTML = `<div class="stage"></div><button class="fitbtn">FIT</button>`;
+  const stage=host.querySelector('.stage');
+  const fitBtn=host.querySelector('.fitbtn');
+  let scale=1, tx=0, ty=0, minScale=.1, maxScale=2.6, lastPortrait=null;
+
+  function place(r,i){
+    const half=roundsInfo[r-1].pairs/2;
+    if(r===NR) return {col:5, side:'c', y:rowY(8)};
+    const left=i<half, j=left?i:i-half, span=pow2(r-1);
+    return {col: left?r-1:COLS-r, side:left?'l':'r', y:rowY((j+0.5)*span)};
+  }
+  function slotOf(r,i,side){
+    if(r===1) return {kind:'movie', round:1, m:season.movies[side==='a'?i*2:i*2+1]};
+    const fi=side==='a'?i*2:i*2+1, f=resolve(r-1,fi);
+    if(!f.done){
+      const s=fi*pow2(r-1), e=s+pow2(r-1); let d=null;
+      for(let k=s;k<e;k++){ const m=season.movies[k]; if(resolve.isOut(m)) continue; if(!d||m.date>d) d=m.date; }
+      return {kind:'tbd', by:d};
+    }
+    if(!f.winner) return {kind:'tie'};
+    return {kind:'movie', round:r, m:f.winner};
+  }
+  function rowHTML(sl,res,tie){
+    if(sl.kind==='tbd') return `<div class="mrow tbd"><span class="mnm">TBD</span><span class="mfg">${sl.by?shortDate(sl.by):''}</span></div>`;
+    if(sl.kind==='tie') return `<div class="mrow tbd"><span class="mnm">Tie</span><span class="mfg">$0.00M</span></div>`;
+    const m=sl.m, sc=resolve.scoreOf(m);
+    let cls='mrow';
+    if(tie) cls+=' lost'; else if(res.done&&res.winner) cls += (res.winner===m?' won':' lost');
+    const seed = sl.round===1 ? `<span class="msd">${m.seed}</span>` : '';
+    const fig = sc!=null ? `$${sc.toFixed(2)}` : shortDate(m.date);
+    return `<div class="${cls}">${seed}<span class="mnm">${m.name}</span><span class="mfg">${fig}</span></div>`;
+  }
+
+  function build(){
+    stage.style.width=STAGE_W+'px'; stage.style.height=STAGE_H+'px';
+    let h='';
+    for(let r=1;r<=NR;r++){
+      (r===NR?[5]:[r-1,COLS-r]).forEach(c=>{
+        h+=`<div class="roundlab" style="left:${colX(c)}px; top:34px; width:${CARD_W}px;">${roundsInfo[r-1].name.toUpperCase()}</div>`;
+      });
+    }
+    [0,1,2,3].forEach(b=>{
+      const left=b<2, lower=b%2===1;
+      h+=`<div class="regionlab" style="left:${left?PAD_X-30:STAGE_W-PAD_X+8}px; top:${rowY(lower?8:0)}px;
+           height:${8*ROW_PITCH}px; width:22px;">${bracketNames[b]}</div>`;
+    });
+    for(let r=1;r<=NR;r++) for(let i=0;i<roundsInfo[r-1].pairs;i++){
+      const p=place(r,i), res=resolve(r,i), tie=res.done&&res.tie;
+      const w=r===NR?186:CARD_W, hh=r===NR?70:CARD_H;
+      const x=r===NR?colX(5)-(186-CARD_W)/2:colX(p.col);
+      h+=`<div class="m ${r===NR?'champ':''}" style="left:${x}px; top:${p.y-hh/2}px;">
+        ${rowHTML(slotOf(r,i,'a'),res,tie)}${rowHTML(slotOf(r,i,'b'),res,tie)}</div>`;
+    }
+    stage.innerHTML = h + `<svg class="lines" width="${STAGE_W}" height="${STAGE_H}"></svg>`;
+    drawLines(); fitTitles();
+  }
+  function drawLines(){
+    let d='';
+    for(let r=1;r<NR;r++) for(let j=0;j<roundsInfo[r-1].pairs/2;j++){
+      const A=place(r,j*2), B=place(r,j*2+1), P=place(r+1,j);
+      if(A.side!==B.side) continue;
+      const left=A.side==='l';
+      const xOut=left?colX(A.col)+CARD_W:colX(A.col);
+      const xIn = P.side==='c' ? (left?colX(5)-13:colX(5)-13+186)
+                               : (left?colX(P.col):colX(P.col)+CARD_W);
+      const xMid=(xOut+xIn)/2;
+      d+=`M${xOut},${A.y} H${xMid} M${xOut},${B.y} H${xMid} M${xMid},${A.y} V${B.y} M${xMid},${P.y} H${xIn} `;
+    }
+    const svg=stage.querySelector('.lines');
+    if(svg) svg.innerHTML=`<path d="${d}" stroke="var(--gold-dim)" stroke-width="1.4" fill="none" stroke-linecap="round" opacity=".8"/>`;
+  }
+  /* long titles step down in size before they resort to clipping */
+  function fitTitles(){
+    stage.querySelectorAll('.mnm').forEach(el=>{
+      el.style.fontSize=''; let fs=10.5;
+      while(el.scrollWidth>el.clientWidth+0.5 && fs>7.2){ fs-=0.4; el.style.fontSize=fs.toFixed(1)+'px'; }
+    });
+  }
+
+  const apply=()=>stage.style.transform=`translate(${tx}px,${ty}px) scale(${scale})`;
+  function clamp(){
+    const vw=host.clientWidth, vh=host.clientHeight, w=STAGE_W*scale, hh=STAGE_H*scale;
+    tx = w<=vw ? (vw-w)/2 : Math.min(0, Math.max(vw-w, tx));
+    ty = hh<=vh ? (vh-hh)/2 : Math.min(0, Math.max(vh-hh, ty));
+  }
+  /* you can never zoom out past the point where the bracket fills the short
+     dimension - portrait fills height, landscape fills width */
+  function baseScale(){
+    const portrait = host.clientHeight>=host.clientWidth;
+    return portrait ? host.clientHeight/STAGE_H : host.clientWidth/STAGE_W;
+  }
+  function reset(){ minScale=baseScale()||0.2; scale=minScale; tx=0; ty=0; clamp(); apply(); }
+  function zoomAt(k,cx,cy){
+    const next=Math.max(minScale,Math.min(maxScale,scale*k)), f=next/scale;
+    tx=cx-(cx-tx)*f; ty=cy-(cy-ty)*f; scale=next; clamp(); apply();
+  }
+  fitBtn.onclick=reset;
+
+  const pts=new Map(); let last=null, pinch=null, lastTap=0;
+  const local=e=>{ const r=host.getBoundingClientRect(); return {x:e.clientX-r.left,y:e.clientY-r.top}; };
+  host.addEventListener('pointerdown',e=>{
+    if(e.target===fitBtn) return;
+    host.setPointerCapture(e.pointerId); pts.set(e.pointerId,local(e));
+    if(pts.size===1){ last=local(e);
+      const now=performance.now(); if(now-lastTap<300){ const p=local(e); zoomAt(1.9,p.x,p.y); } lastTap=now;
+    } else if(pts.size===2){ const [a,b]=[...pts.values()];
+      pinch={d:Math.hypot(a.x-b.x,a.y-b.y), c:{x:(a.x+b.x)/2,y:(a.y+b.y)/2}}; }
+  });
+  host.addEventListener('pointermove',e=>{
+    if(!pts.has(e.pointerId)) return;
+    pts.set(e.pointerId,local(e));
+    if(pts.size===2&&pinch){
+      const [a,b]=[...pts.values()];
+      const d=Math.hypot(a.x-b.x,a.y-b.y), c={x:(a.x+b.x)/2,y:(a.y+b.y)/2};
+      if(pinch.d>0){ tx+=c.x-pinch.c.x; ty+=c.y-pinch.c.y; zoomAt(d/pinch.d,c.x,c.y); }
+      pinch={d,c};
+    } else if(pts.size===1&&last){
+      const p=local(e); tx+=p.x-last.x; ty+=p.y-last.y; last=p; clamp(); apply();
+    }
+  });
+  const release=e=>{ pts.delete(e.pointerId); if(pts.size<2) pinch=null;
+    if(pts.size===0) last=null; else last=[...pts.values()][0]; };
+  host.addEventListener('pointerup',release);
+  host.addEventListener('pointercancel',release);
+  // the drag is ours; don't let it bubble out and dismiss the page
+  host.addEventListener('touchmove', e=>e.preventDefault(), {passive:false});
+  host.addEventListener('wheel', e=>{ e.preventDefault(); const p=local(e);
+    zoomAt(e.deltaY<0?1.12:1/1.12,p.x,p.y); }, {passive:false});
+
+  build(); reset();
+  return {
+    reset, rebuild(){ build(); reset(); },
+    onResize(){ const portrait=host.clientHeight>=host.clientWidth;
+      if(portrait!==lastPortrait){ lastPortrait=portrait; reset(); }
+      else { minScale=baseScale()||0.2; if(scale<minScale) scale=minScale; clamp(); apply(); }
+      fitTitles(); }
+  };
+}
+
+/* =========================================================================
+   THE LEAGUE — players, their brackets, and the standings derived from them.
+   Nothing about a standing is stored: it's recomputed from picks vs results.
+   ========================================================================= */
+const NAMES=["Andrew","George","Ben","Christopher","Nick","Umar","Daniel","Josh",
+             "Alex","Minnesota","Sean","Adam","Andy","Jason"];
+const ME="Jason";
+
+const resolveFinal = makeResolver(SEASON, new Date(2026,11,31));
+let resolve = makeResolver(SEASON, SEASON.today);
+let elim = elimByRound(resolve);
+
+const league = NAMES.map((name,i)=>({
+  name,
+  picks: makePicks(SEASON, resolveFinal, 900+i*137, name===ME?0.72:0.62+((i*7)%23)/100),
+}));
+const meRec = league.find(p=>p.name===ME);
+
+/* Movement means "since the last film opened" - the only moment anything can
+   change - so we score the league at that cutoff and again just before it. */
+function standingsAt(cutoff){
+  const rs=makeResolver(SEASON,cutoff), el=elimByRound(rs);
+  const rows=league.map(p=>({name:p.name, total:scoreBracket(rs,el,p.picks).total}));
+  rows.sort((a,b)=>b.total-a.total || a.name.localeCompare(b.name));
+  let place=0,prev=null,rank={};
+  rows.forEach((r,i)=>{ if(r.total!==prev){ place=i+1; prev=r.total; } rank[r.name]=place; });
+  return {rows, rank};
+}
+const opened = SEASON.movies.filter(m=>!m.zero && m.date<=SEASON.today).sort((a,b)=>b.date-a.date);
+const lastOpen = opened[0] ? opened[0].date : SEASON.today;
+const nowTable = standingsAt(SEASON.today);
+const prevTable = standingsAt(new Date(lastOpen.getTime()-86400000));
+
+function myScore(){ return scoreBracket(resolve,elim,meRec.picks); }
+function myRank(){ return nowTable.rank[ME]; }
+const ordinal = n => { const t=n%100; if(t>=11&&t<=13) return n+'th';
+  return n+({1:'st',2:'nd',3:'rd'}[n%10]||'th'); };
+
+/* career history - past seasons are sample data, 2026 is live and real */
+const HISTORY={
+  Jason:[[2025,1,118,'Zootopia 2',true],[2024,7,96,'Deadpool & Wolverine',false],
+         [2023,3,104,'Barbie',true],[2022,11,88,'Top Gun: Maverick',false],
+         [2021,1,112,'Spider-Man: No Way Home',true]],
+  Andrew:[[2025,5,101,'Wicked: For Good',false],[2024,2,122,'Inside Out 2',true],
+          [2023,1,79,'The Super Mario Bros. Movie',true]],
+};
+const historyFor = n => HISTORY[n] || [[2025,(n.length%12)+1,90+n.length*3,'Zootopia 2',n.length%2===0]];
+
+/* 2027 is Open: films are set, picks are being taken, nothing has resolved */
+const NEXT_STATE = {open:true, picks:{1:[],2:[],3:[],4:[],5:[],6:[]}, submitted:false};
+const nextResolve = makeResolver(NEXT, new Date(2026,0,1));
+
+/* =========================================================================
+   SEASON LIFECYCLE
+     setup → open → live → ended
+   Every step is a button you press. Nothing moves on a date, because a film
+   opening on 31 Dec has no number until January and a season shouldn't end
+   before its own results arrive.
+   More than one season can be live at once - that's the changeover window,
+   when last year is still being scored and this year has already begun.
+   ========================================================================= */
+const SEASONS = [
+  {year:2026, data:SEASON, state:'live',  picks:{}, paid:{}},
+  {year:2027, data:NEXT,   state:'open',  picks:{}, paid:{}},
+];
+const seasonBy = y => SEASONS.find(s=>s.year===y);
+const STATE_LABEL = {setup:'SETUP', open:'TAKING PICKS', live:'LIVE', ended:'FINAL'};
+
+/* 2026 already has everyone's brackets in */
+league.forEach(p=>{ seasonBy(2026).picks[p.name]=p.picks; });
+seasonBy(2027).picks[ME]=NEXT_STATE.picks;
+
+/* the scoring context for whichever season is on screen */
+let CTX=null, viewYear=2026;
+function buildContext(sn){
+  const rs = makeResolver(sn.data, sn.data.today);
+  const el2 = elimByRound(rs);
+  const names = Object.keys(sn.picks);
+  const table = cutoff => {
+    const r2=makeResolver(sn.data,cutoff), e2=elimByRound(r2);
+    const rows=names.map(n=>({name:n, total:scoreBracket(r2,e2,sn.picks[n]).total}));
+    rows.sort((a,b)=>b.total-a.total||a.name.localeCompare(b.name));
+    let place=0,prev=null,rank={};
+    rows.forEach((r,i)=>{ if(r.total!==prev){place=i+1;prev=r.total;} rank[r.name]=place; });
+    return {rows,rank};
+  };
+  const op = sn.data.movies.filter(m=>!m.zero&&m.date<=sn.data.today).sort((a,b)=>b.date-a.date);
+  const last = op[0]?op[0].date:sn.data.today;
+  return {sn, season:sn.data, resolve:rs, elim:el2,
+          now:table(sn.data.today), prev:table(new Date(last.getTime()-86400000)),
+          opened:op, lastOpen:last};
+}
+/* seasons you can actually look at: running, or finished but kept on screen */
+const viewable = () => SEASONS.filter(s=>s.state==='live'||s.state==='ended');
+
+function selectSeason(y){
+  const sn=seasonBy(y); if(!sn||!(sn.state==='live'||sn.state==='ended')) return;
+  viewYear=y; CTX=buildContext(sn);
+  document.querySelectorAll('.seasonline').forEach(n=>{
+    n.innerHTML=`${y} BOX OFFICE TOURNAMENT <span class="caret">▾</span>` +
+      (sn.state==='ended'?' <span class="statechip">FINAL</span>':'');
+  });
+  if(bracketView){ bracketView.destroy(); bracketView=null; }
+  if(masterView){ masterView.destroy(); masterView=null; }
+  fullView=null;
+  renderStandings(); mountBracket(null);
+  if(currentTab==='tournament') mountTournament();
+  closeSheet('seasons');
+}
+
+/* ---------- the commissioner's controls ---------- */
+function submissionSummary(sn){
+  const total=league.length;
+  const done=league.filter(p=>{
+    const pk=sn.picks[p.name]; if(!pk) return false;
+    return roundsInfo.every((info,i)=>(pk[i+1]||[]).filter(Boolean).length===info.pairs);
+  }).length;
+  return {done,total,missing:league.filter(p=>{
+    const pk=sn.picks[p.name]; if(!pk) return true;
+    return !roundsInfo.every((info,i)=>(pk[i+1]||[]).filter(Boolean).length===info.pairs);
+  }).map(p=>p.name)};
+}
+function unscoredCount(sn){
+  const rs=makeResolver(sn.data,sn.data.today);
+  return sn.data.movies.filter(m=>rs.scoreOf(m)==null).length;
+}
+
+function renderSeasons(){
+  el('seasonList').innerHTML = SEASONS.slice().sort((a,b)=>b.year-a.year).map(sn=>{
+    const sub=submissionSummary(sn), un=unscoredCount(sn);
+    let action='', note='';
+    if(sn.state==='setup'){
+      action=`<button class="abtn" data-act="open|${sn.year}">Open for picks</button>`;
+      note='Import the 64 films first.';
+    } else if(sn.state==='open'){
+      action=`<button class="abtn" data-act="launch|${sn.year}">Launch tournament</button>`;
+      note=`${sub.done} of ${sub.total} brackets submitted.` +
+           (sub.missing.length?` Still waiting on ${sub.missing.join(', ')}.`:'');
+    } else if(sn.state==='live'){
+      action=`<button class="abtn sec" data-act="end|${sn.year}">End tournament</button>`;
+      note = un===0 ? 'Every film has a score — ready to end whenever you like.'
+                    : `${un} film${un===1?'':'s'} still without a score.`;
+    } else {
+      note='Finished. Still readable by everyone, and listed in each profile.';
+    }
+    return `<div class="sncard">
+      <div class="snhead"><b>${sn.year}</b><span class="snstate st-${sn.state}">${STATE_LABEL[sn.state]}</span></div>
+      <div class="snnote">${note}</div>${action}</div>`;
+  }).join('');
+}
+
+function seasonAction(act, year){
+  const sn=seasonBy(year);
+  if(act==='open'){ sn.state='open'; toast(`${year} is open for picks`); }
+
+  if(act==='launch'){
+    const sub=submissionSummary(sn);
+    const msg = sub.missing.length
+      ? `Launch ${year}?\n\n${sub.done} of ${sub.total} brackets are in. These aren't:\n${sub.missing.join(', ')}\n\nTheir picks lock exactly as they stand.`
+      : `Launch ${year}?\n\nAll ${sub.total} brackets are in. Picks lock and everyone's bracket becomes visible.`;
+    if(!confirm(msg)) return;
+    // anyone who never submitted keeps whatever they had; the rest of the field
+    // is simulated here so the standings have something to score
+    league.forEach((p,i)=>{ if(!sn.picks[p.name])
+      sn.picks[p.name]=makePicks(sn.data, makeResolver(sn.data,new Date(sn.year,11,31)), 500+i*91, 0.6); });
+    sn.state='live';
+    sn.data.today=new Date(sn.year,2,1);       // a couple of months in, for the prototype
+    NEXT_STATE.open=false;
+    el('navFill').style.display='none';
+    toast(`${year} is live`);
+    selectSeason(year);
+  }
+
+  if(act==='end'){
+    const un=unscoredCount(sn);
+    if(!confirm(`End ${year}?\n\n${un?un+' films still have no score. ':''}It stops being the current season, moves into everyone's history, and stays readable.`)) return;
+    sn.state='ended';
+    toast(`${year} ended`);
+    const live=SEASONS.find(s=>s.state==='live');
+    selectSeason(live?live.year:year);
+  }
+  renderSeasons();
+  renderSeasonPicker();
+}
+
+function renderSeasonPicker(){
+  el('seasonPick').innerHTML = viewable().slice().sort((a,b)=>b.year-a.year).map(sn=>
+    `<div class="snpick ${sn.year===viewYear?'on':''}" data-y="${sn.year}">
+      <b>${sn.year}</b><span class="snstate st-${sn.state}">${STATE_LABEL[sn.state]}</span></div>`).join('')
+    || `<div class="stub">No season is running yet.</div>`;
+}
+
+/* =========================================================================
+   SCREENS
+   ========================================================================= */
+const $ = s => document.querySelector(s);
+const el = id => document.getElementById(id);
+let bracketView=null, fillView=null, masterView=null, fullView=null, viewingPlayer=null;
+
+/* ---------- MY BRACKET / a player's bracket ---------- */
+function mountBracket(player){
+  viewingPlayer = player && player.name!==ME ? player : null;
+  const name = viewingPlayer ? viewingPlayer.name : ME;
+  const picks = CTX.sn.picks[name];
+  const p = {name, picks};
+  if(!picks){ el('bkHost').innerHTML=`<div class="stub">No bracket for ${name} in ${CTX.sn.year}.</div>`;
+    el('bkName').textContent=name; el('bkRank').textContent='—'; el('bkTotal').textContent='0';
+    el('bkBack').style.display = viewingPlayer?'flex':'none'; return; }
+  const s = scoreBracket(CTX.resolve, CTX.elim, picks);
+  el('bkName').textContent = p.name;
+  el('bkRank').textContent = ordinal(CTX.now.rank[p.name]||0).toUpperCase();
+  el('bkTotal').textContent = s.total;
+  el('bkBack').style.display = viewingPlayer ? 'flex' : 'none';
+  if(bracketView) bracketView.destroy();
+  bracketView = createBracket(el('bkHost'), {
+    mode:'mine', season:CTX.season, resolve:CTX.resolve, elim:CTX.elim, picks:picks,
+    onRound(r){ paintBracketHeader(r, p); }
+  });
+  paintBracketHeader(1, p);
+}
+function paintBracketHeader(r, p){
+  const s = scoreBracket(CTX.resolve, CTX.elim, p.picks);
+  el('bkRound').textContent = roundsInfo[r-1].name;
+  el('bkRoundPts').innerHTML = `<b>${s.per[r]}</b> PTS`;
+  el('bkTotal').textContent = s.total;
+}
+
+/* ---------- STANDINGS ---------- */
+function renderStandings(){
+  el('slist').innerHTML = CTX.now.rows.map(row=>{
+    const picks=CTX.sn.picks[row.name];
+    const champ=picks?picks[6][0]:null;
+    const alive = champ ? !(CTX.elim[champ.id]!==undefined) : true;
+    const place=CTX.now.rank[row.name];
+    const mv=(CTX.prev.rank[row.name]||place)-place;
+    const cls = mv>0?'up':mv<0?'dn':'fl';
+    const label = mv>0?`▲&thinsp;${mv}`:mv<0?`▼&thinsp;${Math.abs(mv)}`:'—';
+    const medal = place<=3 ? `medal g${place}` : '';
+    return `<div class="rowwrap">
+      <span class="mvtab ${cls}">${label}</span>
+      <div class="srow ${row.name===ME?'me':''}" data-p="${row.name}">
+        <span class="pl ${medal}">${place}</span>
+        <div class="smid"><div class="who">${row.name}</div></div>
+        <div class="spts"><b>${row.total}</b><i>PTS</i></div>
+        <div class="schamp ${alive?'':'dead'}">${champ?champ.name:'—'}</div>
+      </div></div>`;
+  }).join('');
+  el('since').textContent = `MOVEMENT SINCE ${CTX.opened[0]?CTX.opened[0].name.toUpperCase():'THE LAST OPENING'} OPENED · ${shortDate(CTX.lastOpen).toUpperCase()}`;
+  el('whoCount').textContent = `${CTX.now.rows.length} PLAYERS`;
+  el('slist').onclick = e=>{
+    const row=e.target.closest('.srow'); if(!row) return;
+    go('bracket'); mountBracket({name:row.dataset.p});
+  };
+}
+
+/* ---------- TOURNAMENT ---------- */
+let tourMode='master';
+function mountTournament(){
+  el('tSegMaster').classList.toggle('on', tourMode==='master');
+  el('tSegFull').classList.toggle('on', tourMode==='full');
+  el('tMaster').style.display = tourMode==='master'?'flex':'none';
+  el('tFull').style.display   = tourMode==='full'?'block':'none';
+  if(tourMode==='master'){
+    if(!masterView) masterView = createBracket(el('tMasterHost'), {
+      mode:'master', season:CTX.season, resolve:CTX.resolve, elim:CTX.elim, picks:null,
+      onRound(r){ el('tRound').textContent = roundsInfo[r-1].name; }
+    });
+    else masterView.relayout();
+    el('tRound').textContent = roundsInfo[masterView.round()-1].name;
+    el('tWho').textContent='MASTER BRACKET';
+  } else {
+    if(!fullView) fullView = createFullBracket(el('tFull'), CTX.season, CTX.resolve);
+    else fullView.onResize();
+    el('tRound').textContent='Full Bracket';
+    el('tWho').textContent='MASTER BRACKET';
+  }
+}
+function setTour(m){ tourMode=m; mountTournament(); }
+
+/* ---------- 2027 FILL ---------- */
+function mountFill(){
+  if(!fillView) fillView = createBracket(el('fillHost'), {
+    mode:'fill', season:NEXT, resolve:nextResolve, elim:{}, picks:NEXT_STATE.picks,
+    onRound(r){ el('fillRound').textContent = roundsInfo[r-1].name; updateFillBar(); },
+    onPick(){ updateFillBar(); }
+  });
+  else fillView.relayout();
+  updateFillBar();
+}
+function updateFillBar(){
+  const r = fillView ? fillView.round() : 1;
+  const info=roundsInfo[r-1];
+  const made=(NEXT_STATE.picks[r]||[]).filter(Boolean).length;
+  const left=info.pairs-made;
+  el('fillRound').textContent = info.name;
+  el('fillProg').textContent = left===0 ? `${info.name} complete` : `${left} pick${left!==1?'s':''} left in ${info.name}`;
+  el('fillMsg').textContent='';
+}
+function submitFill(){
+  const miss=[];
+  roundsInfo.forEach((info,i)=>{
+    const f=(NEXT_STATE.picks[i+1]||[]).filter(Boolean).length;
+    if(f<info.pairs) miss.push(`${info.name} (${f}/${info.pairs})`);
+  });
+  const msg=el('fillMsg');
+  if(miss.length){ msg.style.color='var(--red)'; msg.textContent=`Finish these first: ${miss.join(', ')}`; return; }
+  NEXT_STATE.submitted=true;
+  msg.style.color='var(--green)';
+  msg.textContent='Submitted — you can change it any time before the season starts.';
+  el('fillDot').style.display='none';
+  toast('Bracket submitted');
+}
+
+/* ---------- PROFILE ---------- */
+function openProfile(name){
+  const who = name || ME;
+  const isMe = who===ME;
+  const past = historyFor(who);
+  const picks = CTX.sn.picks[who];
+  const live = picks ? scoreBracket(CTX.resolve,CTX.elim,picks).total : 0;
+  const wins = past.filter(s=>s[1]===1).length;
+  el('pfName').textContent = who;
+  el('pfStars').textContent = '⭐'.repeat(wins);
+  const rows = [[CTX.sn.year, CTX.now.rank[who]||'—', live, (picks&&picks[6][0])?picks[6][0].name:'—', null, CTX.sn.state!=='ended'], ...past];
+  el('pfSeasons').innerHTML = rows.map(([yr,pl,pts,champ,hit,isLive])=>{
+    const medal = isLive ? '' : ({1:'🏆',2:'🥈',3:'🥉'}[pl]||'');
+    const cc = isLive ? '' : (hit?'hit':'miss');
+    return `<div class="yrow ${isLive?'live':''}">
+      <span class="ypl ${medal?'medal':''}">${medal||pl}</span>
+      <div class="yline"><span class="yr">${yr}</span>
+        <span class="ychamp ${cc}">${champ}</span>
+        ${isLive?'<span class="livechip">LIVE</span>':''}</div>
+      <div class="spts"><b>${pts}</b><i>PTS</i></div></div>`;
+  }).join('');
+  el('pfAccount').style.display = isMe ? 'block' : 'none';
+  el('pfComm').style.display = isMe ? 'block' : 'none';
+  showSheet('profile');
+}
+
+/* ---------- COMMISSIONER ---------- */
+let sortBy='release', openId=null;
+const SORTS=[['release','RELEASE'],['seed','RANK'],['name','A–Z'],['score','SCORE']];
+const needsScore = m => !m.zero && CTX.resolve.scoreOf(m)==null && m.date<=CTX.season.today;
+
+function renderComm(){
+  const q=(el('cq').value||'').trim().toLowerCase();
+  el('cclear').classList.toggle('show', q!=='');
+  const by={
+    release:(a,b)=>a.date-b.date,
+    seed:(a,b)=>a.seed-b.seed||a.bracket-b.bracket,
+    name:(a,b)=>a.name.localeCompare(b.name),
+    score:(a,b)=>((b.zero||b.date<=CTX.season.today?b.finalScore:-1))-((a.zero||a.date<=CTX.season.today?a.finalScore:-1))||a.date-b.date,
+  }[sortBy];
+  const rows=CTX.season.movies.filter(m=>!q||m.name.toLowerCase().includes(q)).sort(by);
+
+  el('cchips').innerHTML=SORTS.map(([k,l])=>
+    `<div class="chip ${sortBy===k?'on':''}" data-k="${k}">${l}</div>`).join('');
+
+  el('clist').innerHTML=rows.map(m=>{
+    const sc=CTX.resolve.scoreOf(m);
+    let state;
+    if(m.zero) state=`<div class="cstate zero">$0.00M<br>${m.zero}</div>`;
+    else if(sc!=null) state=`<div class="cstate paid">$${sc.toFixed(2)}M</div>`;
+    else if(needsScore(m)) state=`<div class="cstate due">NEEDS SCORE</div>`;
+    else state=`<div class="cstate wait">${shortDate(m.date)}</div>`;
+    return `<div class="crow ${openId===m.id?'open':''}" data-id="${m.id}">
+      <div class="ctop" data-toggle="${m.id}">
+        <div class="csd"><b>${m.seed}</b>B${m.bracket}</div>
+        <div class="cmid"><div class="cnm">${m.name}</div><div class="csub">opens ${shortDate(m.date)}</div></div>
+        ${state}
+      </div>
+      <div class="cedit">
+        <div class="flab">FILM TITLE</div>
+        <input class="fin" id="n-${m.id}" value="${m.name.replace(/"/g,'&quot;')}">
+        <div class="flab">RELEASE DATE</div>
+        <input class="fin" type="date" id="d-${m.id}" value="${m.date.toISOString().slice(0,10)}" ${m.zero?'disabled':''}>
+        <div class="flab">OPENING WEEKEND</div>
+        <div class="money"><span>$</span><input class="fin" type="number" step="0.01" placeholder="0.00"
+          id="s-${m.id}" value="${sc!=null&&!m.zero?sc.toFixed(2):''}" ${m.zero?'disabled':''}></div>
+        <div class="flab">NEVER OPENED IN THEATRES</div>
+        <div class="reasons">${[['','In theatres'],['streaming','Streaming'],['cancelled','Cancelled'],['pushed to 2027','Pushed to 2027']]
+          .map(([v,l])=>`<div class="rz ${v===''?'none':''} ${(m.zero||'')===v?'on':''}" data-zero="${m.id}|${v}">${l}</div>`).join('')}</div>
+        <button class="abtn" data-save="${m.id}">Save</button>
+      </div></div>`;
+  }).join('');
+}
+function commitScores(){
+  CTX = buildContext(CTX.sn);
+  if(bracketView){ bracketView.destroy(); bracketView=null; }
+  if(masterView){ masterView.destroy(); masterView=null; }
+  fullView=null;
+  renderStandings(); mountBracket(viewingPlayer);
+}
+
+/* =========================================================================
+   SHELL — three permanent tabs, plus a fourth while a season is open for
+   picks. Sheets (profile, rules, commissioner, setup) sit on top.
+   ========================================================================= */
+let currentTab='bracket', sheetStack=[];
+
+function go(tab){
+  currentTab=tab;
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on'));
+  el('s-'+tab).classList.add('on');
+  document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('on', b.dataset.s===tab));
+  showNav();
+  requestAnimationFrame(()=>{
+    if(tab==='bracket'){ if(!bracketView) mountBracket(null); else bracketView.relayout(); }
+    if(tab==='tournament') mountTournament();
+    if(tab==='fill') mountFill();
+  });
+}
+function showSheet(id){
+  sheetStack.push(id);
+  el('sheet-'+id).classList.add('open');
+  if(id==='commissioner') renderComm();
+}
+function closeSheet(id){
+  el('sheet-'+id).classList.remove('open');
+  sheetStack = sheetStack.filter(x=>x!==id);
+}
+
+/* the bar steps out of the way going down a list, and returns the moment you
+   pull back up - so a bracket gets the full screen without hiding the nav */
+const nav=el('nav'); let navHidden=false, lastY={};
+function showNav(){ if(navHidden){ nav.classList.remove('hidden'); navHidden=false; } }
+function hideNav(){ if(!navHidden){ nav.classList.add('hidden'); navHidden=true; } }
+function watchScroll(key, node){
+  if(!node) return;
+  node.addEventListener('scroll', ()=>{
+    const y=node.scrollTop, prev=lastY[key]||0, dy=y-prev;
+    if(y<50) showNav(); else if(dy>5) hideNav(); else if(dy<-5) showNav();
+    lastY[key]=y;
+  }, {passive:true});
+}
+
+function toast(msg){
+  const t=el('toast'); t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),1500);
+}
+
+/* ---------- wiring ---------- */
+el('nav').addEventListener('click', e=>{
+  const b=e.target.closest('button'); if(b) go(b.dataset.s);
+});
+el('bkBack').onclick = ()=>mountBracket(null);
+el('tSegMaster').onclick = ()=>setTour('master');
+el('tSegFull').onclick   = ()=>setTour('full');
+document.querySelectorAll('[data-pill]').forEach(b=>b.onclick=()=>openProfile(viewingPlayer&&currentTab==='bracket'?viewingPlayer.name:ME));
+el('fillSubmit').onclick = submitFill;
+
+/* commissioner interactions */
+el('cq').addEventListener('input', renderComm);
+el('cclear').onclick = ()=>{ el('cq').value=''; el('cq').focus(); renderComm(); };
+el('cchips').addEventListener('click', e=>{
+  const c=e.target.closest('.chip'); if(!c) return;
+  sortBy=c.dataset.k; openId=null; renderComm();
+});
+el('clist').addEventListener('click', e=>{
+  const t=e.target.closest('[data-toggle]');
+  if(t){ openId = openId===t.dataset.toggle ? null : t.dataset.toggle; renderComm(); return; }
+  const z=e.target.closest('[data-zero]');
+  if(z){
+    const [id,v]=z.dataset.zero.split('|');
+    const m=CTX.season.movies.find(x=>x.id===id);
+    m.zero = v||null;
+    if(m.zero) m.finalScore=0;
+    renderComm(); commitScores(); return;
+  }
+  const s=e.target.closest('[data-save]');
+  if(s){
+    const id=s.dataset.save, m=CTX.season.movies.find(x=>x.id===id);
+    const name=el('n-'+id).value.trim(), date=el('d-'+id).value, sc=el('s-'+id).value;
+    if(name) m.name=name;                     // picks point at the id, never the title
+    if(date && !m.zero){ const [y,mo,d]=date.split('-').map(Number); m.date=new Date(y,mo-1,d); }
+    if(!m.zero && sc!==''){ m.finalScore=Math.round(parseFloat(sc)*100)/100; m.date=new Date(Math.min(m.date,CTX.season.today)); }
+    openId=null; renderComm(); commitScores(); toast('Saved');
+  }
+});
+
+/* season switcher lives on the header's season line */
+document.querySelectorAll('.seasonline').forEach(n=>n.onclick=()=>{ renderSeasonPicker(); showSheet('seasons'); });
+el('seasonPick').addEventListener('click', e=>{
+  const p=e.target.closest('.snpick'); if(p) selectSeason(+p.dataset.y);
+});
+el('seasonList').addEventListener('click', e=>{
+  const b=e.target.closest('[data-act]'); if(!b) return;
+  const [act,yr]=b.dataset.act.split('|'); seasonAction(act, +yr);
+});
+el('pfSeasonsBtn').onclick = ()=>{ closeSheet('profile'); renderSeasons(); showSheet('seasonadmin'); };
+
+/* handy when poking at the prototype from a console */
+window.APP = {SEASONS, seasonBy, selectSeason, seasonAction, league,
+  ctx:()=>CTX, year:()=>viewYear};
+
+/* ---------- boot ---------- */
+selectSeason(2026);
+go('bracket');
+watchScroll('bracket', bracketView.viewport);
+watchScroll('stand', el('standScroll'));
+watchScroll('fillv', null);
+if(NEXT_STATE.open) el('navFill').style.display='flex';
+window.addEventListener('resize', ()=>{
+  bracketView && bracketView.relayout();
+  masterView && masterView.relayout();
+  fillView && fillView.relayout();
+  fullView && fullView.onResize();
+});
+if(document.fonts?.ready) document.fonts.ready.then(()=>{
+  bracketView && bracketView.relayout();
+});
+
+</script>
+</body>
+</html>

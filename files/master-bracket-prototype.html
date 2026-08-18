@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Master Bracket</title>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    color-scheme:dark;
+    --bg:#08080B; --card:#1A1A24; --card-line:#343446; --seam:#3B3B52;
+    --gold:#F0B54B; --gold-dim:#8C7133; --cream:#FFF3DC;
+    --txt:#D9D9E4; --txt-dim:#8D8D9F; --txt-lose:#A0A0B2;
+    --green:#5FC97A; --red:#E0574A;
+  }
+  *{box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%; background:var(--bg); color:var(--txt); font-family:'Archivo',sans-serif; overscroll-behavior:none;}
+  .app{height:100vh; max-width:480px; margin:0 auto; display:flex; flex-direction:column; position:relative; background:var(--bg);}
+
+  /* ---------- HEADER: left changes as you swipe, right never moves ---------- */
+  .header{flex:0 0 auto; border-bottom:1px solid var(--card-line);}
+  .season{font-size:9.5px; letter-spacing:2.6px; font-weight:700; color:var(--txt-dim);
+          text-align:center; padding:11px 16px 0;}
+  .hbar{display:flex; align-items:baseline; justify-content:space-between; gap:14px; padding:10px 16px 14px;}
+  .hleft{min-width:0;}
+  .rd{font-size:27px; font-weight:800; letter-spacing:-.7px; color:var(--cream); line-height:1.0;
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .whoami{font-family:'IBM Plex Mono'; font-size:13px; font-weight:600; letter-spacing:1.2px;
+          color:var(--gold); white-space:nowrap; flex:0 0 auto;}
+
+  /* ---------- ONE PLANE: 6 columns, one shared vertical scroll ---------- */
+  .bracket-body{flex:1; min-height:0; position:relative;}
+  .viewport{position:absolute; inset:0; overflow-y:auto; overflow-x:hidden; touch-action:pan-y;
+            scrollbar-width:none; -webkit-overflow-scrolling:touch;}
+  .viewport::-webkit-scrollbar{display:none;}
+  .plane{position:relative; display:flex; will-change:transform;}
+  .col{position:relative; flex:0 0 auto;}
+  .lines{position:absolute; left:0; top:0; pointer-events:none; overflow:visible;}
+  .group-label{position:absolute; left:16px; font-family:'IBM Plex Mono'; font-size:9.5px;
+               letter-spacing:2px; color:var(--txt-dim); white-space:nowrap;}
+
+  /* ---------- MATCHUP ---------- */
+  .unit{position:absolute; z-index:2; left:16px; right:46px; display:flex; border-radius:12px; overflow:hidden;
+        transform-origin:center center; background:var(--card); border:1px solid var(--card-line); isolation:isolate;
+        background-image:linear-gradient(180deg, rgba(255,255,255,.055) 0%, rgba(255,255,255,0) 46%);
+        box-shadow:0 6px 18px -6px rgba(0,0,0,.85), inset 0 1px 0 rgba(255,255,255,.07);}
+  .half{flex:1 1 0; min-width:0; display:flex; flex-direction:column; justify-content:center; align-items:flex-start;
+        gap:5px; padding:14px 15px 15px; position:relative; min-height:92px;
+        transition:color .34s ease, flex-grow .40s cubic-bezier(.2,.75,.2,1);}
+  .half + .half::before{content:''; position:absolute; left:0; top:15px; bottom:15px; width:1px; background:var(--seam);}
+
+  .toprow{display:flex; align-items:center; gap:7px; min-height:14px;}
+  .sd{font-family:'IBM Plex Mono'; font-size:10px; font-weight:600; color:var(--txt-dim); letter-spacing:.5px; transition:.34s ease;}
+  .tietag{font-size:8px; font-weight:700; letter-spacing:1px; padding:2px 5px; border-radius:20px;
+          white-space:nowrap; border:1px solid currentColor; color:#9A9AAE;}
+
+  .ttl{font-size:12.5px; font-weight:700; letter-spacing:-.2px; line-height:1.18; text-transform:uppercase; color:var(--txt);
+       min-width:0; overflow:hidden; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical;
+       transition:font-size .40s cubic-bezier(.2,.75,.2,1), color .34s ease;}
+  .fig{font-family:'IBM Plex Mono'; font-size:11px; font-weight:600; color:var(--txt-dim); letter-spacing:.2px;}
+
+  /* nothing is chosen here - both sides sit equal until a matchup settles */
+  .half.neutral .ttl{font-size:13px;}
+  .half.tbd .ttl, .half.tieslot .ttl{color:var(--txt-dim); font-style:italic; text-transform:none; font-weight:600;}
+
+  /* the film that actually won */
+  .half.won{flex-grow:1.32;}
+  .half.won::after{content:''; position:absolute; inset:0; z-index:-1; pointer-events:none;
+    background:radial-gradient(125% 155% at 50% 118%, rgba(95,201,122,.30) 0%, rgba(95,201,122,.11) 45%, transparent 78%);}
+  .half.won .ttl{font-size:17.5px; font-weight:800; letter-spacing:-.5px; color:#E8FBEE; text-shadow:0 0 22px rgba(95,201,122,.38);}
+  .half.won .sd, .half.won .fig.paid{color:var(--green);}
+
+  .half.lost{flex-grow:.84;}
+  .half.lost .ttl{font-size:11.5px; font-weight:600; color:#8B8B9D;
+                  text-decoration:line-through; text-decoration-thickness:3px;
+                  text-decoration-color:currentColor; -webkit-text-decoration-color:currentColor;}
+  .half.lost .sd, .half.lost .fig{color:#6E6E80;}
+
+  /* ---------- OVERLAYS ---------- */
+  .overlay{position:absolute; inset:0; background:rgba(4,4,6,.92); z-index:60; display:none;
+           align-items:center; justify-content:center; padding:20px;}
+  .overlay.open{display:flex;}
+  .overlay-card{background:var(--card); border:1px solid var(--card-line); border-radius:16px; padding:22px 20px;
+                width:100%; max-width:360px; max-height:88vh; overflow-y:auto; position:relative;}
+  .overlay-card h2{font-size:21px; font-weight:800; color:var(--cream); margin-bottom:5px;}
+  .rules-body h3{font-size:13px; font-weight:800; color:var(--gold); margin:16px 0 6px; text-transform:uppercase;}
+  .rules-body h3:first-of-type{margin-top:0;}
+  .rules-body p{font-size:12.5px; line-height:1.6; color:var(--txt); margin-bottom:6px;}
+  .rules-body .dim{color:var(--txt-dim); font-style:italic; font-size:11.5px;}
+  .close-x{position:absolute; top:14px; right:14px; width:26px; height:26px; border-radius:50%; background:var(--bg);
+           border:1px solid var(--card-line); color:var(--txt-dim); display:flex; align-items:center;
+           justify-content:center; cursor:pointer; font-size:12px;}
+
+  /* ---------- prototype-only state switch (not part of the real app) ---------- */
+  .devbar{position:absolute; bottom:12px; left:50%; transform:translateX(-50%); z-index:50; display:flex; gap:4px;
+          background:rgba(0,0,0,.72); border:1px solid var(--card-line); border-radius:20px; padding:4px;
+          backdrop-filter:blur(6px);}
+  .devbar button{background:none; border:none; color:var(--txt-dim); font-family:'IBM Plex Mono'; font-size:9.5px;
+                 font-weight:600; letter-spacing:.5px; padding:5px 11px; border-radius:16px; cursor:pointer;}
+  .devbar button.on{background:var(--card-line); color:var(--cream);}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <div class="season">2026 BOX OFFICE TOURNAMENT</div>
+    <div class="hbar">
+      <div class="hleft"><div class="rd" id="hRound">Round 1</div></div>
+      <div class="whoami">MASTER BRACKET</div>
+    </div>
+  </div>
+
+  <div class="bracket-body">
+    <div class="viewport" id="viewport"><div class="plane" id="plane"></div></div>
+  </div>
+
+  <div class="devbar">
+    <button id="devMid" onclick="setSeason('mid')">MID-SEASON</button>
+    <button id="devEnd" onclick="setSeason('end')">SEASON COMPLETE</button>
+  </div>
+
+  <div class="overlay" id="rulesOverlay">
+    <div class="overlay-card rules-body">
+      <div class="close-x" onclick="closeModal('rulesOverlay')">✕</div>
+      <h2>RULES</h2>
+      <p class="dim" style="margin-bottom:14px;">64 movies, 4 brackets, single elimination.</p>
+      <h3>Scoring</h3>
+      <p>A movie's score is its opening weekend (domestic). Once it has a score it keeps it all year. When both movies in a matchup have opened, the higher score advances.</p>
+      <h3>Points</h3>
+      <p>Round 1: 1 pt · Round 2: 2 pts · Round 3: 4 pts · Quarter-Finals: 8 pts · Semi-Finals: 16 pts · Champion: 32 pts. Every round is worth 32 points in total, so a perfect bracket is 192.</p>
+      <h3>Wrong picks don't end your bracket</h3>
+      <p>If the movie you picked to advance is the winner of a later matchup, you score for it — even if you got the round before it wrong.</p>
+      <h3>When movies don't release</h3>
+      <p>If a movie pushes into next year, is changed from a theatrical release to a streaming release or is outright cancelled it scores $0.</p>
+      <h3>Ties</h3>
+      <p>The only way to tie is for both films to score $0. Nobody scores and neither advances — an empty slot then counts as a $0 competitor, so whoever it meets next has to post a score above zero to get through. If you picked either film it counts as wrong.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+function openModal(id){ document.getElementById(id).classList.add('open'); }
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+</script>
+
+<script>
+/* =========================================================================
+   DATA
+   ========================================================================= */
+const bracketNames=["Bracket 1","Bracket 2","Bracket 3","Bracket 4"];
+const seedOrder=[1,16,8,9,5,12,4,13,6,11,3,14,7,10,2,15];
+const B1=["Avengers: Doomsday","Mercy","The Angry Birds Movie 3","Goat","Dr. Seuss' The Cat in the Hat","Young Washington","Michael","Focker-In-Law","Street Fighter","Practical Magic 2","Hexed","Cut Off","Scream 7","Return to Silent Hill","The Super Mario Galaxy Movie","Soulm8te"];
+const B2=["Toy Story 5","Crime 101","PAW Patrol: The Dino Movie","Untitled Spielberg Film","Animal Friends","The Dog Stars","Forgotten Island","The Breadwinner","The Odyssey","Werwulf","Moana","Remain","Insidious 6","Evil Dead Burn","Dune: Part Three","Shiver"];
+const B3=["The Mandalorian & Grogu","Reminders of Him","The Devil Wears Prada 2","The Bride!","Project Hail Mary","The Social Reckoning","Hoppers","Archangel","Mortal Kombat II","28 Years Later: The Bone Temple","Masters of the Universe","Cliffhanger","Violent Night 2","Wuthering Heights","The Hunger Games: Sunrise on the Reaping","The Drama"];
+const B4=["Spider-Man: Brand New Day","Power Ballad","Clayface","Ready or Not 2: Here I Come","The Mummy","Whitney Springs","The Legend of Aang: The Last Airbender","4 Kids Walk Into a Bank","Narnia: The Magician's Nephew","Scary Movie 6","Jumanji 4","Greenland 2: Migration","Coyote vs Acme","Resident Evil","Supergirl: Woman of Tomorrow","The Sheep Detectives"];
+
+const roundsInfo=[
+  {name:"Round 1",pts:1,pairs:32},{name:"Round 2",pts:2,pairs:16},
+  {name:"Round 3",pts:4,pairs:8},{name:"Quarter-Finals",pts:8,pairs:4},
+  {name:"Semi-Finals",pts:16,pairs:2},{name:"Championship",pts:32,pairs:1}];
+const NR=6;
+
+/* deterministic pseudo-random, so the sample season is identical every reload */
+let _s=20260812;
+const rnd=()=>{ _s|=0; _s=_s+0x6D2B79F5|0; let t=Math.imul(_s^_s>>>15,1|_s); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; };
+
+const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+let mid=0;
+const mk=(t,b)=>t.map((name,i)=>{
+  const m={id:'m'+(mid++), name, seed:seedOrder[i], bracket:b};
+  m.date=new Date(2026,0,4+Math.floor(rnd()*355));
+  m.finalScore=Math.round(Math.max(1.1, 175*Math.exp(-0.17*(m.seed-1))*(0.55+rnd()*0.95))*100)/100;
+  return m;
+});
+const allMovies=[...mk(B1,0),...mk(B2,1),...mk(B3,2),...mk(B4,3)];
+
+/* films that never made it to a theatre. 6 and 7 are a Round 1 pair, giving a
+   live example of a tie: both score $0, so neither advances. */
+allMovies[6].zero='pushed to 2027';
+allMovies[7].zero='cancelled';
+allMovies[29].zero='streaming';
+allMovies[44].zero='pushed to 2027';
+allMovies.forEach(m=>{ if(m.zero) m.finalScore=0; });
+
+const fmtDate=d=>`opens ${MONTHS[d.getMonth()]} ${d.getDate()}`;
+
+/* =========================================================================
+   RESOLUTION
+   `scoreOf` is the only difference between the finished season and today's
+   partial one, so both states run through exactly the same logic.
+   ========================================================================= */
+let TODAY=new Date(2026,7,12);
+const isOut = m => m.zero ? true : m.date<=TODAY;          // $0 is known regardless of date
+const scoreOf = m => isOut(m) ? m.finalScore : null;
+
+function makeResolver(getScore){
+  const cache={};
+  return function res(r,i){
+    const key=r+':'+i;
+    if(cache[key]) return cache[key];
+    let a,b,done=false,winner=null,tie=false;
+    if(r===1){
+      a=allMovies[i*2]; b=allMovies[i*2+1];
+      const sa=getScore(a), sb=getScore(b);
+      if(sa!=null && sb!=null){
+        done=true;
+        if(sa===sb) tie=true; else winner = sa>sb ? a : b;
+      }
+    } else {
+      const A=res(r-1,i*2), B=res(r-1,i*2+1);
+      a=A.winner; b=B.winner;
+      if(A.done && B.done){
+        done=true;
+        if(a && b){
+          const sa=getScore(a), sb=getScore(b);
+          if(sa===sb) tie=true; else winner = sa>sb ? a : b;
+        } else if(a || b){
+          /* One side tied out, so this film faces an empty slot. An empty slot
+             counts as a $0 competitor: the survivor still has to post its own
+             score and beat zero. If it hasn't opened we wait, because it could
+             yet be pushed or cancelled - and then it's another tie rather than
+             points we'd have to take back. */
+          const solo=a||b, ss=getScore(solo);
+          if(ss==null) done=false;
+          else if(ss>0) winner=solo;
+          else tie=true;
+        } else {
+          tie=true;   // both feeders tied: the null carries upward
+        }
+      }
+    }
+    return cache[key]={a,b,done,winner,tie};
+  };
+}
+
+let resolve=makeResolver(scoreOf);
+
+/* ---- what fills each half of a matchup ----
+   A film only ever appears in a slot it actually won, so nothing needs tracking
+   across rounds: a slot holds a film, a tie that killed the branch, or a spot
+   still to be decided. */
+const pow2=r=>1<<r;
+function latestPendingDate(r,i){
+  const start=i*pow2(r), end=start+pow2(r);      // the films feeding this slot
+  let d=null;
+  for(let k=start;k<end;k++){
+    const m=allMovies[k];
+    if(isOut(m)) continue;                        // already has its number
+    if(!d || m.date>d) d=m.date;
+  }
+  return d;
+}
+function slot(r,i,side){
+  if(r===1) return {kind:'movie', round:1, m:allMovies[side==='a' ? i*2 : i*2+1]};
+  const fi = side==='a' ? i*2 : i*2+1;
+  const f = resolve(r-1, fi);
+  if(!f.done)   return {kind:'tbd', by:latestPendingDate(r-1, fi)};
+  if(!f.winner) return {kind:'tie'};
+  return {kind:'movie', round:r, m:f.winner};
+}
+
+/* =========================================================================
+   LAYOUT
+   A real bracket has one property: each round's spacing is exactly double the
+   round before it. So the whole plane is described by a single number, `focus`
+   - the round currently sized to fit the screen.
+
+       pitch(r) = BASE * 2^(r - focus)
+
+   Because pitch doubles, the midpoint between matchups 2j and 2j+1 lands
+   exactly on matchup j of the next round. Alignment is automatic, not
+   calculated. `focus` is continuous, so animating it makes the whole bracket
+   breathe between "aligned with the round I came from" and "fits the screen".
+   ========================================================================= */
+const GAP=14, LABEL_H=22, TOP_PAD=30, MIN_BASE=104;
+let focus=1, targetFocus=1, focusAnim=null, BASE=MIN_BASE, currentRound=1, colW=0;
+const els={};
+const vp=()=>document.getElementById('viewport');
+const pitch=r=>BASE*Math.pow(2, r-focus);
+const centerOf=(r,i)=>TOP_PAD+(i+0.5)*pitch(r);
+
+function groupLabel(r,i){
+  if(r>=4) return null;                          // QF onward each card is a whole bracket's winner
+  const per=roundsInfo[r-1].pairs/4;
+  return i%per===0 ? bracketNames[Math.floor(i/per)] : null;
+}
+
+function halfHTML(sl, res, isTie){
+  if(sl.kind==='tbd'){
+    const by = sl.by ? `${MONTHS[sl.by.getMonth()]} ${sl.by.getDate()}` : '';
+    return `<div class="half neutral tbd">
+      <span class="ttl">TBD</span><span class="fig">${by}</span></div>`;
+  }
+  if(sl.kind==='tie'){
+    return `<div class="half neutral tieslot">
+      <div class="toprow"><span class="tietag">NO ADVANCE</span></div>
+      <span class="ttl">Tie</span><span class="fig">$0.00M</span></div>`;
+  }
+  const m=sl.m, sc=scoreOf(m);
+  let cls='half';
+  if(isTie) cls+=' lost';
+  else if(res.done && res.winner) cls += (res.winner===m ? ' won' : ' lost');
+  else cls+=' neutral';
+  const figure = sc!=null
+    ? `<span class="fig ${sc>0?'paid':''}">$${sc.toFixed(2)}M${(sc===0&&m.zero)?' · '+m.zero:''}</span>`
+    : `<span class="fig">${fmtDate(m.date)}</span>`;
+  // the seed only means something in Round 1, where the bracket was drawn
+  const seedTag = sl.round===1 ? `<span class="sd">${m.seed}</span>` : '';
+  const tieTag  = isTie ? '<span class="tietag">TIE · NO ADVANCE</span>' : '';
+  const top = (seedTag||tieTag) ? `<div class="toprow">${seedTag}${tieTag}</div>` : '';
+  return `<div class="${cls}">${top}
+    <span class="ttl">${m.name}</span>${figure}</div>`;
+}
+
+function buildCol(r){
+  const info=roundsInfo[r-1];
+  let h='';
+  for(let i=0;i<info.pairs;i++){
+    const lab=groupLabel(r,i);
+    if(lab) h+=`<div class="group-label" data-i="${i}">${lab}</div>`;
+    const res=resolve(r,i), isTie=res.done && res.tie;
+    h+=`<div class="unit" data-i="${i}">
+      ${halfHTML(slot(r,i,'a'), res, isTie)}
+      ${halfHTML(slot(r,i,'b'), res, isTie)}
+    </div>`;
+  }
+  return h;
+}
+
+function build(){
+  const plane=document.getElementById('plane');
+  plane.innerHTML='';
+  for(let r=1;r<=NR;r++){
+    const col=document.createElement('div');
+    col.className='col'; col.dataset.round=r; col.innerHTML=buildCol(r);
+    plane.appendChild(col);
+  }
+  const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+  svg.setAttribute('class','lines'); svg.id='lines';
+  plane.appendChild(svg);
+  cacheEls();
+}
+
+function cacheEls(){
+  for(let r=1;r<=NR;r++){
+    const col=document.querySelector(`.col[data-round="${r}"]`);
+    els[r]={col,
+      units:[...col.querySelectorAll('.unit')],
+      labels:[...col.querySelectorAll('.group-label')].map(el=>({el,i:+el.dataset.i}))};
+  }
+  observeUnits();
+}
+
+/* A card's height changes when a long title wraps or a winner's type scales up,
+   so watch the cards themselves. Positions are applied as transforms, which
+   don't affect measured height, so this can't feed back on itself. */
+let unitRO=null, roQueued=false;
+function observeUnits(){
+  if(unitRO) unitRO.disconnect();
+  unitRO=new ResizeObserver(()=>{
+    if(roQueued) return;
+    roQueued=true;
+    requestAnimationFrame(()=>{ roQueued=false; relayoutNow(); });
+  });
+  for(let r=1;r<=NR;r++) els[r]?.units.forEach(u=>unitRO.observe(u));
+}
+
+function tallestUnit(){
+  let m=0;
+  for(let r=1;r<=NR;r++) (els[r]?.units||[]).forEach(u=>m=Math.max(m,u.offsetHeight));
+  return m||92;
+}
+
+function layout(){
+  const view=vp();
+  colW=view.clientWidth;
+  BASE=Math.max(MIN_BASE, tallestUnit()+GAP+LABEL_H);
+  let planeH=0;
+  for(let r=1;r<=NR;r++){
+    const E=els[r]; if(!E) continue;
+    const P=pitch(r);
+    const scaleAt=nat=>Math.max(.08, Math.min(1, P/(nat+GAP)));   // squash to fit a tight slot
+    E.units.forEach((u,i)=>{
+      const nat=u.offsetHeight, s=scaleAt(nat), c=centerOf(r,i);
+      u.style.top=(c-nat/2)+'px';
+      u.style.transform = s<0.999 ? `scaleY(${s})` : '';
+      planeH=Math.max(planeH, c+nat*s/2);
+    });
+    E.labels.forEach(({el,i})=>{
+      const u=E.units[i]; if(!u) return;
+      const nat=u.offsetHeight, s=scaleAt(nat);
+      el.style.top=(centerOf(r,i)-nat*s/2-19)+'px';
+      el.style.opacity = s>0.6?1:Math.max(0,(s-.35)/.25);
+    });
+  }
+  const plane=document.getElementById('plane');
+  plane.style.height=Math.max(planeH+TOP_PAD, view.clientHeight)+'px';
+  plane.style.width=(colW*NR)+'px';
+  for(let r=1;r<=NR;r++) if(els[r]) els[r].col.style.width=colW+'px';
+  applyX(baseX()+dragX);
+  drawLines();
+}
+
+/* one SVG across the whole plane, so lines genuinely cross between columns */
+function drawLines(){
+  const svg=document.getElementById('lines'); if(!svg) return;
+  const H=parseFloat(document.getElementById('plane').style.height)||0, W=colW;
+  svg.setAttribute('width', W*NR); svg.setAttribute('height', H);
+  let d='';
+  for(let r=1;r<NR;r++){
+    const info=roundsInfo[r-1];
+    const xOut=(r-1)*W+(W-46), xIn=r*W+16, xMid=(xOut+xIn)/2;
+    for(let j=0;j<info.pairs/2;j++){
+      const yA=centerOf(r,j*2), yB=centerOf(r,j*2+1), yP=centerOf(r+1,j);
+      d+=`M${xOut},${yA} H${xMid} M${xOut},${yB} H${xMid} M${xMid},${yA} V${yB} M${xMid},${yP} H${xIn} `;
+    }
+  }
+  svg.innerHTML=`<path d="${d}" stroke="var(--gold-dim)" stroke-width="1.6" fill="none" stroke-linecap="round" opacity="0.85"/>`;
+}
+
+/* keep one matchup pinned to the same spot on screen while everything moves */
+function capture(r){
+  const view=vp(), E=els[r];
+  if(!E||!E.units.length) return null;
+  const eye=view.scrollTop+view.clientHeight/2;
+  let best=0,bd=Infinity;
+  E.units.forEach((u,i)=>{ const d=Math.abs(centerOf(r,i)-eye); if(d<bd){bd=d;best=i;} });
+  return {r,i:best,screenY:centerOf(r,best)-view.scrollTop};
+}
+function restore(a){
+  if(!a) return;
+  const view=vp();
+  const max=Math.max(0,(parseFloat(document.getElementById('plane').style.height)||0)-view.clientHeight);
+  view.scrollTop=Math.max(0, Math.min(max, centerOf(a.r,a.i)-a.screenY));
+}
+function relayoutNow(){ const a=capture(Math.round(focus)); layout(); restore(a); }
+
+function animateFocus(to, anchor){
+  cancelAnimationFrame(focusAnim);
+  const from=focus, t0=performance.now(), D=620, a=capture(anchor??to);
+  targetFocus=to;
+  const step=now=>{
+    const p=Math.min(1,(now-t0)/D), e=1-Math.pow(1-p,3);
+    focus=from+(to-from)*e;
+    layout(); restore(a);
+    if(p<1) focusAnim=requestAnimationFrame(step);
+  };
+  focusAnim=requestAnimationFrame(step);
+}
+
+/* =========================================================================
+   HORIZONTAL PAGING - ours, not the browser's, so an angled swipe doesn't
+   change rounds by accident. The gesture must be clearly sideways (DOMINANCE)
+   and travel far enough (COMMIT) to count.
+   ========================================================================= */
+const SWIPE_MIN=14, DOMINANCE=1.8, COMMIT=0.30, FLICK=0.55, SLIDE_MS=300;
+let colIndex=0, dragX=0, axis=null, slideAnim=null, p0=null;
+const baseX=()=>-colIndex*colW;
+function applyX(px){ document.getElementById('plane').style.transform=`translateX(${px}px)`; }
+
+function onDown(e){
+  if(e.pointerType==='mouse' && e.button!==0) return;
+  cancelAnimationFrame(slideAnim);
+  p0={x:e.clientX,y:e.clientY,t:performance.now()};
+  axis=null; dragX=0;
+}
+function onMove(e){
+  if(!p0) return;
+  const dx=e.clientX-p0.x, dy=e.clientY-p0.y;
+  if(axis===null){
+    if(Math.abs(dx)<SWIPE_MIN && Math.abs(dy)<SWIPE_MIN) return;
+    axis=(Math.abs(dx)>Math.abs(dy)*DOMINANCE)?'x':'y';
+    if(axis==='y'){ p0=null; return; }        // hand it back to vertical scrolling
+  }
+  let d=dx;
+  if((colIndex===0&&d>0)||(colIndex===NR-1&&d<0)) d*=0.32;   // rubber-band at the ends
+  dragX=d; applyX(baseX()+dragX);
+}
+function onUp(){
+  if(!p0 || axis!=='x'){ p0=null; axis=null; return; }
+  const dt=Math.max(1, performance.now()-p0.t), v=dragX/dt;
+  let t=colIndex;
+  if(Math.abs(dragX)>colW*COMMIT || Math.abs(v)>FLICK) t=colIndex-Math.sign(dragX);
+  p0=null; axis=null;
+  slideTo(Math.max(0, Math.min(NR-1, t)));
+}
+function slideTo(idx){
+  const from=baseX()+dragX;
+  colIndex=idx; dragX=0;
+  const to=baseX(), t0=performance.now();
+  cancelAnimationFrame(slideAnim);
+  const step=now=>{
+    const p=Math.min(1,(now-t0)/SLIDE_MS), e=1-Math.pow(1-p,3);
+    applyX(from+(to-from)*e);
+    if(p<1) slideAnim=requestAnimationFrame(step); else finishSlide();
+  };
+  slideAnim=requestAnimationFrame(step);
+}
+function finishSlide(){
+  const r=colIndex+1;
+  if(r!==currentRound){ currentRound=r; updateHeader(); }
+  if(Math.abs(targetFocus-r)>0.01 || Math.abs(focus-r)>0.01) animateFocus(r,r);
+}
+
+function updateHeader(){
+  document.getElementById('hRound').textContent = roundsInfo[currentRound-1].name;
+}
+
+/* ---- prototype-only: same code, different amount of the season resolved ---- */
+function setSeason(which){
+  TODAY = which==='end' ? new Date(2026,11,31) : new Date(2026,7,12);
+  resolve = makeResolver(scoreOf);          // fresh cache for the new cutoff
+  document.getElementById('devMid').classList.toggle('on', which==='mid');
+  document.getElementById('devEnd').classList.toggle('on', which==='end');
+  build(); layout(); updateHeader();
+}
+
+/* ================= BOOT ================= */
+setSeason('mid');
+const V=vp();
+V.addEventListener('pointerdown', onDown);
+V.addEventListener('pointermove', onMove, {passive:true});
+V.addEventListener('pointerup', onUp);
+V.addEventListener('pointercancel', ()=>{ p0=null; axis=null; slideTo(colIndex); });
+new ResizeObserver(()=>{ requestAnimationFrame(relayoutNow); }).observe(V);
+if(document.fonts?.ready) document.fonts.ready.then(relayoutNow);
+window.addEventListener('resize', ()=>{ requestAnimationFrame(()=>{ layout(); applyX(baseX()); }); });
+</script>
+</body>
+</html>

@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>Profile</title>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    color-scheme:dark;
+    --bg:#08080B; --card:#1A1A24; --card-line:#343446; --seam:#3B3B52;
+    --gold:#F0B54B; --cream:#FFF3DC; --txt:#D9D9E4; --txt-dim:#8D8D9F;
+    --green:#5FC97A; --red:#E0574A;
+  }
+  *{box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%; background:var(--bg); color:var(--txt); font-family:'Archivo',sans-serif; overscroll-behavior:none;}
+  .app{height:100vh; max-width:480px; margin:0 auto; display:flex; flex-direction:column; background:var(--bg); position:relative;}
+
+  .header{flex:0 0 auto; border-bottom:1px solid var(--card-line);}
+  .season{font-size:9.5px; letter-spacing:2.6px; font-weight:700; color:var(--txt-dim); text-align:center; padding:11px 16px 0;}
+  .hbar{text-align:center; padding:8px 16px 14px;}
+  .rd{font-size:27px; font-weight:800; letter-spacing:-.7px; color:var(--cream); line-height:1;
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  /* one ticket for every tournament won */
+  .tickets{font-size:17px; letter-spacing:3px; margin-top:8px; line-height:1;}
+  .tickets:empty{display:none;}
+
+  .scroller{flex:1; min-height:0; overflow-y:auto; scrollbar-width:none;}
+  .scroller::-webkit-scrollbar{display:none;}
+  .body{padding:16px 16px 30px;}
+
+  .sectionlab{font-family:'IBM Plex Mono'; font-size:9.5px; letter-spacing:2px; color:var(--txt-dim);
+              margin:22px 2px 10px; }
+  .sectionlab:first-child{margin-top:0;}
+
+  /* ---------- season rows (same grammar as standings) ---------- */
+  .row{position:relative; display:flex; align-items:center; gap:12px;
+       background:var(--card); border:1px solid var(--card-line); border-radius:11px;
+       padding:11px 13px; min-height:56px; margin-bottom:8px; cursor:pointer;
+       background-image:linear-gradient(180deg, rgba(255,255,255,.045) 0%, rgba(255,255,255,0) 50%);
+       box-shadow:0 4px 12px -6px rgba(0,0,0,.8), inset 0 1px 0 rgba(255,255,255,.06);}
+  .row.live{border-color:rgba(240,181,75,.55);
+            background-image:linear-gradient(180deg, rgba(240,181,75,.10) 0%, rgba(240,181,75,.02) 60%);}
+  .pl{font-family:'IBM Plex Mono'; font-size:16px; font-weight:700; color:var(--txt-dim);
+      width:38px; height:38px; flex:0 0 auto; display:flex; align-items:center; justify-content:center;}
+  .pl.medal{font-size:27px; width:38px; height:38px;}
+  .mid{flex:1; min-width:0;}
+  .yr{font-size:17px; font-weight:700; color:var(--cream); flex:0 0 auto;}
+  .yrline{display:flex; align-items:baseline; gap:10px; min-width:0;}
+  .yr .livechip{font-family:'IBM Plex Mono'; font-size:9px; font-weight:700; letter-spacing:1px;
+           color:var(--gold); border:1px solid rgba(240,181,75,.45); border-radius:20px; padding:2px 6px; margin-left:9px;}
+  .pts{font-family:'IBM Plex Mono'; flex:0 0 auto; display:flex; align-items:baseline; gap:4px;}
+  .pts b{font-size:22px; font-weight:700; color:var(--cream);}
+  .pts i{font-style:normal; font-size:8.5px; letter-spacing:1px; color:var(--txt-dim); font-weight:700;}
+  .champ{font-family:'IBM Plex Mono'; font-size:10px; color:var(--gold); min-width:0;
+         white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .champ.hit{color:var(--green);}
+  .champ.miss{color:#8B8B9D; text-decoration:line-through; text-decoration-thickness:2px;
+              text-decoration-color:currentColor; -webkit-text-decoration-color:currentColor;}
+
+  /* ---------- account ---------- */
+  .field-label{font-size:10px; color:var(--txt-dim); letter-spacing:1px; margin:12px 0 5px; font-weight:600;}
+  .field-input{width:100%; background:var(--card); border:1px solid var(--card-line); border-radius:10px;
+               padding:12px 13px; color:var(--cream); font-size:16px; font-family:'Archivo';}
+  .field-input:focus{outline:none; border-color:var(--gold);}
+  .btn{width:100%; margin-top:14px; background:var(--gold); color:#17130A; border:none; padding:13px;
+       border-radius:10px; font-weight:800; font-size:14px; cursor:pointer; font-family:'Archivo';}
+  .btn.secondary{background:transparent; border:1px solid var(--card-line); color:var(--txt); margin-top:9px;}
+  .btn.quiet{background:transparent; border:none; color:var(--txt-dim); font-weight:600; font-size:12.5px; margin-top:14px;}
+  .saved{font-family:'IBM Plex Mono'; font-size:10.5px; color:var(--green); text-align:center; margin-top:9px; min-height:14px;}
+
+  /* prototype-only */
+  .devbar{position:absolute; bottom:12px; left:50%; transform:translateX(-50%); z-index:50; display:flex; gap:4px;
+          background:rgba(0,0,0,.72); border:1px solid var(--card-line); border-radius:20px; padding:4px; backdrop-filter:blur(6px);}
+  .devbar button{background:none; border:none; color:var(--txt-dim); font-family:'IBM Plex Mono'; font-size:9.5px;
+                 font-weight:600; letter-spacing:.5px; padding:5px 11px; border-radius:16px; cursor:pointer;}
+  .devbar button.on{background:var(--card-line); color:var(--cream);}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <div class="season">2026 BOX OFFICE TOURNAMENT</div>
+    <div class="hbar">
+      <div class="rd" id="hName">Jason</div>
+      <div class="tickets" id="hTickets"></div>
+    </div>
+  </div>
+
+  <div class="scroller">
+    <div class="body">
+      <div class="sectionlab">SEASONS</div>
+      <div id="seasons"></div>
+
+      <div id="account">
+        <div class="sectionlab">ACCOUNT</div>
+        <div class="field-label">YOUR NAME</div>
+        <input class="field-input" id="fName" value="Jason">
+        <div class="field-label">EMAIL</div>
+        <input class="field-input" id="fEmail" value="nerdwithapencil@gmail.com">
+        <div class="saved" id="saved"></div>
+        <button class="btn" onclick="save()">Save Changes</button>
+        <button class="btn secondary">Full Rules</button>
+        <button class="btn quiet">Sign out</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="devbar">
+    <button id="devMe" onclick="setView('me')">MY PROFILE</button>
+    <button id="devOther" onclick="setView('other')">ANOTHER PLAYER</button>
+  </div>
+</div>
+
+<script>
+/* year, place, points, champion pick, got the champion right, still running */
+const people = {
+  Jason: {seasons:[
+    [2026, 4,  39, 'Avengers: Doomsday', null, true],
+    [2025, 1, 118, 'Zootopia 2',          true,  false],
+    [2024, 7,  96, 'Deadpool & Wolverine',false, false],
+    [2023, 3, 104, 'Barbie',              true,  false],
+    [2022,11,  88, 'Top Gun: Maverick',   false, false],
+    [2021, 1, 112, 'Spider-Man: No Way Home', true, false],
+  ]},
+  Andrew: {seasons:[
+    [2026, 1,  46, 'Avengers: Doomsday', null, true],
+    [2025, 5, 101, 'Wicked: For Good',   false, false],
+    [2024, 2, 122, 'Inside Out 2',       true,  false],
+    [2023, 1,  79, 'The Super Mario Bros. Movie', true, false],
+  ]},
+};
+
+let who='Jason';
+
+function render(){
+  const p=people[who];
+  hName.textContent = who;
+  const wins = p.seasons.filter(s=>s[1]===1 && !s[5]).length;
+  hTickets.textContent = '⭐'.repeat(wins);   // one star per tournament won
+
+  seasons.innerHTML = p.seasons.map(([yr,pl,pts,champ,hit,live])=>{
+    const medal = live ? '' : ({1:'🏆',2:'🥈',3:'🥉'}[pl] || '');
+    const cc = live ? '' : (hit ? 'hit' : 'miss');
+    return `<div class="row ${live?'live':''}">
+      <span class="pl ${medal?'medal':''}">${medal || pl}</span>
+      <div class="mid">
+        <div class="yrline">
+          <span class="yr">${yr}</span>
+          <span class="champ ${cc}">${champ}</span>
+          ${live?'<span class="livechip">LIVE</span>':''}
+        </div>
+      </div>
+      <div class="pts"><b>${pts}</b><i>PTS</i></div>
+    </div>`;
+  }).join('');
+}
+
+function setView(v){
+  who = v==='me' ? 'Jason' : 'Andrew';
+  account.style.display = v==='me' ? 'block' : 'none';
+  devMe.classList.toggle('on', v==='me');
+  devOther.classList.toggle('on', v==='other');
+  render();
+}
+
+function save(){
+  saved.textContent = 'Saved';
+  setTimeout(()=>saved.textContent='', 1600);
+}
+
+setView('me');
+</script>
+</body>
+</html>

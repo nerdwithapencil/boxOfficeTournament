@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>New Season</title>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    color-scheme:dark;
+    --bg:#08080B; --card:#1A1A24; --card-line:#343446; --seam:#3B3B52;
+    --gold:#F0B54B; --cream:#FFF3DC; --txt:#D9D9E4; --txt-dim:#8D8D9F;
+    --green:#5FC97A; --red:#E0574A;
+  }
+  *{box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%; background:var(--bg); color:var(--txt); font-family:'Archivo',sans-serif; overscroll-behavior:none;}
+  .app{height:100vh; max-width:480px; margin:0 auto; display:flex; flex-direction:column; background:var(--bg);}
+
+  .header{flex:0 0 auto; border-bottom:1px solid var(--card-line);}
+  .season{font-size:9.5px; letter-spacing:2.6px; font-weight:700; color:var(--txt-dim); text-align:center; padding:11px 16px 0;}
+  .hbar{text-align:center; padding:10px 16px 13px;}
+  .rd{font-size:27px; font-weight:800; letter-spacing:-.7px; color:var(--cream); line-height:1;}
+
+  .scroller{flex:1; min-height:0; overflow-y:auto; scrollbar-width:none;}
+  .scroller::-webkit-scrollbar{display:none;}
+  .body{padding:16px 16px 34px;}
+
+  .lab{font-family:'IBM Plex Mono'; font-size:9.5px; letter-spacing:2px; color:var(--txt-dim); margin:20px 2px 9px;}
+  .lab:first-child{margin-top:0;}
+  .hint{font-size:12px; color:var(--txt-dim); line-height:1.6; margin:0 2px 10px;}
+  .hint code{font-family:'IBM Plex Mono'; color:var(--gold); font-size:11px;}
+
+  textarea{width:100%; height:150px; background:var(--card); border:1px solid var(--card-line); border-radius:11px;
+           padding:12px; color:var(--cream); font-family:'IBM Plex Mono'; font-size:12px; line-height:1.6; resize:vertical;}
+  textarea:focus{outline:none; border-color:var(--gold);}
+
+  .btnrow{display:flex; gap:8px; margin-top:11px;}
+  .btn{flex:1; background:var(--gold); color:#17130A; border:none; padding:13px; border-radius:10px;
+       font-weight:800; font-size:14px; cursor:pointer; font-family:'Archivo';}
+  .btn.sec{background:transparent; border:1px solid var(--card-line); color:var(--txt);}
+  .btn:disabled{opacity:.35; cursor:default;}
+
+  /* ---------- validation ---------- */
+  .status{border-radius:12px; padding:13px 14px; margin-top:16px; border:1px solid var(--card-line); background:var(--card);}
+  .status.ok{border-color:rgba(95,201,122,.5); background:rgba(38,58,44,.6);}
+  .status.bad{border-color:rgba(224,87,74,.5); background:rgba(58,34,32,.6);}
+  .status h3{font-size:14.5px; font-weight:800; color:var(--cream); margin-bottom:4px;}
+  .status.ok h3{color:var(--green);} .status.bad h3{color:var(--red);}
+  .status p{font-family:'IBM Plex Mono'; font-size:11px; color:var(--txt-dim); line-height:1.7;}
+  .issues{list-style:none; margin-top:9px; display:flex; flex-direction:column; gap:6px;}
+  .issues li{font-family:'IBM Plex Mono'; font-size:11px; color:#F0C4C0; line-height:1.5; display:flex; gap:7px;}
+  .issues li span{color:var(--red); flex:0 0 auto;}
+
+  /* ---------- preview ---------- */
+  .bgroup{margin-top:16px;}
+  .bhead{display:flex; align-items:baseline; justify-content:space-between; margin:0 2px 8px;}
+  .bhead b{font-size:14px; font-weight:800; color:var(--cream);}
+  .bhead i{font-style:normal; font-family:'IBM Plex Mono'; font-size:10px; color:var(--txt-dim);}
+  .frow{display:flex; align-items:center; gap:11px; background:var(--card); border:1px solid var(--card-line);
+        border-radius:9px; padding:8px 11px; margin-bottom:5px;}
+  .frow.dupe{border-color:rgba(224,87,74,.55); background:rgba(58,34,32,.45);}
+  .fs{font-family:'IBM Plex Mono'; font-size:13px; font-weight:700; color:var(--cream); width:22px; text-align:right; flex:0 0 auto;}
+  .fn{flex:1; min-width:0; font-size:13.5px; font-weight:600; color:var(--txt); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .fd{font-family:'IBM Plex Mono'; font-size:10px; color:var(--txt-dim); flex:0 0 auto;}
+  .fd.bad{color:var(--red);}
+  .missing{font-family:'IBM Plex Mono'; font-size:10.5px; color:var(--red); padding:7px 11px;
+           border:1px dashed rgba(224,87,74,.5); border-radius:9px; margin-bottom:5px;}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <div class="season">SETTING UP · 2027</div>
+    <div class="hbar"><div class="rd">New Season</div></div>
+  </div>
+
+  <div class="scroller"><div class="body">
+
+    <div class="lab">PASTE FROM YOUR SHEET</div>
+    <div class="hint">Select four columns in Google Sheets and copy: <code>rank · bracket · title · release date</code>.
+      A header row is fine. Dates can be <code>3/6/2027</code> or <code>2027-03-06</code>.</div>
+    <textarea id="paste" placeholder="1&#9;1&#9;Avengers: Doomsday&#9;12/18/2027&#10;1&#9;2&#9;Toy Story 5&#9;5/28/2027&#10;1&#9;3&#9;The Mandalorian &amp; Grogu&#9;5/22/2027&#10;…"></textarea>
+    <div class="btnrow">
+      <button class="btn sec" onclick="loadSample()">Load sample</button>
+      <button class="btn" onclick="parse()">Check</button>
+    </div>
+
+    <div id="out"></div>
+
+  </div></div>
+</div>
+
+<script>
+const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const YEAR=2027;
+let rows=[];
+
+/* ---------- parsing ---------- */
+function splitLine(l){
+  if(l.includes('\t')) return l.split('\t');
+  const out=[]; let cur='', q=false;
+  for(const ch of l){
+    if(ch==='"'){ q=!q; continue; }
+    if(ch===',' && !q){ out.push(cur); cur=''; continue; }
+    cur+=ch;
+  }
+  out.push(cur); return out;
+}
+// JS quietly rolls impossible dates over (month 13 becomes next January), so
+// check the parts before trusting them.
+function makeDate(y,mo,d){
+  if(mo<1||mo>12||d<1||d>31) return null;
+  const dt=new Date(y,mo-1,d);
+  return (dt.getMonth()===mo-1 && dt.getDate()===d) ? dt : null;
+}
+function parseDate(s){
+  s=(s||'').trim(); if(!s) return null;
+  let m=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if(m) return makeDate(+m[1], +m[2], +m[3]);
+  m=s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+  if(m){ let y=+m[3]; if(y<100) y+=2000; return makeDate(y, +m[1], +m[2]); }
+  const d=new Date(s);
+  return isNaN(d) ? null : d;
+}
+
+function parse(){
+  const raw=document.getElementById('paste').value.trim();
+  rows=[];
+  if(!raw){ render(['Nothing pasted yet.']); return; }
+
+  raw.split(/\r?\n/).forEach((line,i)=>{
+    if(!line.trim()) return;
+    const c=splitLine(line).map(x=>x.trim());
+    // skip a header row
+    if(i===0 && !/^\d+$/.test(c[0])) return;
+    rows.push({
+      seed:+c[0], bracket:+c[1], name:c[2]||'',
+      dateRaw:c[3]||'', date:parseDate(c[3]),
+    });
+  });
+  render(validate());
+}
+
+function validate(){
+  const issues=[];
+  if(rows.length!==64) issues.push(`${rows.length} rows found — a season needs exactly 64.`);
+
+  const seen={};
+  rows.forEach((r,i)=>{
+    const n=i+1;
+    if(!(r.seed>=1 && r.seed<=16))      issues.push(`Row ${n}: rank "${r.seed||'—'}" isn't 1–16.`);
+    if(!(r.bracket>=1 && r.bracket<=4)) issues.push(`Row ${n}: bracket "${r.bracket||'—'}" isn't 1–4.`);
+    if(!r.name)                          issues.push(`Row ${n}: no film title.`);
+    if(!r.date)                          issues.push(`Row ${n}: can't read the date "${r.dateRaw}".`);
+    else if(r.date.getFullYear()!==YEAR) issues.push(`Row ${n}: ${r.name} is dated ${r.date.getFullYear()}, not ${YEAR}.`);
+    const k=r.bracket+'-'+r.seed;
+    if(seen[k]!==undefined){ r.dupe=true; rows[seen[k]].dupe=true;
+      issues.push(`Bracket ${r.bracket} has two number ${r.seed} ranks.`); }
+    else seen[k]=i;
+  });
+
+  for(let b=1;b<=4;b++){
+    const missing=[];
+    for(let s=1;s<=16;s++) if(seen[b+'-'+s]===undefined) missing.push(s);
+    if(missing.length && missing.length<16)
+      issues.push(`Bracket ${b} is missing rank${missing.length>1?'s':''} ${missing.join(', ')}.`);
+  }
+  return issues;
+}
+
+/* ---------- render ---------- */
+function render(issues){
+  const ok = rows.length===64 && issues.length===0;
+  let h = `<div class="status ${ok?'ok':'bad'}">
+    <h3>${ok?'Ready to open':'Not ready yet'}</h3>
+    <p>${rows.length} of 64 films read${ok?' · every bracket has ranks 1–16':''}</p>
+    ${issues.length?`<ul class="issues">${issues.slice(0,12).map(x=>`<li><span>✕</span>${x}</li>`).join('')}
+      ${issues.length>12?`<li><span>·</span>and ${issues.length-12} more</li>`:''}</ul>`:''}
+  </div>`;
+
+  if(rows.length){
+    for(let b=1;b<=4;b++){
+      const list=rows.filter(r=>r.bracket===b).sort((x,y)=>x.seed-y.seed);
+      if(!list.length) continue;
+      h+=`<div class="bgroup"><div class="bhead"><b>Bracket ${b}</b><i>${list.length} / 16</i></div>`;
+      const have=new Set(list.map(r=>r.seed));
+      for(let s=1;s<=16;s++){
+        const r=list.find(x=>x.seed===s);
+        if(!r){ h+=`<div class="missing">rank ${s} — missing</div>`; continue; }
+        const d=r.date ? `${MONTHS[r.date.getMonth()]} ${r.date.getDate()}` : r.dateRaw||'no date';
+        h+=`<div class="frow ${r.dupe?'dupe':''}"><span class="fs">${r.seed}</span>
+          <span class="fn">${r.name||'<em>untitled</em>'}</span>
+          <span class="fd ${r.date?'':'bad'}">${d}</span></div>`;
+      }
+      h+=`</div>`;
+    }
+  }
+
+  h+=`<div class="btnrow" style="margin-top:20px;">
+        <button class="btn" ${ok?'':'disabled'} onclick="openSeason()">Open ${YEAR} for picks</button>
+      </div>`;
+  document.getElementById('out').innerHTML=h;
+}
+
+function openSeason(){
+  document.getElementById('out').innerHTML =
+    `<div class="status ok"><h3>${YEAR} is open</h3>
+     <p>Players now see a fourth tab to fill in their bracket. They can resubmit as often
+     they like until the season goes live, and ${YEAR-1} keeps running untouched.</p></div>`;
+}
+
+/* ---------- a valid sample, with two deliberate mistakes to see the checks work ---------- */
+function loadSample(){
+  const T=[["Avengers: Doomsday","Mercy","The Angry Birds Movie 3","Goat","Dr. Seuss' The Cat in the Hat","Young Washington","Michael","Focker-In-Law","Street Fighter","Practical Magic 2","Hexed","Cut Off","Scream 7","Return to Silent Hill","The Super Mario Galaxy Movie","Soulm8te"],
+  ["Toy Story 5","Crime 101","PAW Patrol: The Dino Movie","Untitled Spielberg Film","Animal Friends","The Dog Stars","Forgotten Island","The Breadwinner","The Odyssey","Werwulf","Moana","Remain","Insidious 6","Evil Dead Burn","Dune: Part Three","Shiver"],
+  ["The Mandalorian & Grogu","Reminders of Him","The Devil Wears Prada 2","The Bride!","Project Hail Mary","The Social Reckoning","Hoppers","Archangel","Mortal Kombat II","28 Years Later","Masters of the Universe","Cliffhanger","Violent Night 2","Wuthering Heights","Sunrise on the Reaping","The Drama"],
+  ["Spider-Man: Brand New Day","Power Ballad","Clayface","Ready or Not 2","The Mummy","Whitney Springs","The Last Airbender","4 Kids Walk Into a Bank","Narnia","Scary Movie 6","Jumanji 4","Greenland 2","Coyote vs Acme","Resident Evil","Supergirl","The Sheep Detectives"]];
+  const order=[1,16,8,9,5,12,4,13,6,11,3,14,7,10,2,15];
+  // grouped by rank: all four 1-seeds, then all four 2-seeds, and so on
+  const bySeed={};
+  T.forEach((list,bi)=>list.forEach((name,i)=>{
+    (bySeed[order[i]] = bySeed[order[i]] || [])[bi] = {name, i};
+  }));
+  let out=["Rank\tBracket\tFilm\tRelease"];
+  for(let s=1;s<=16;s++){
+    for(let b=0;b<4;b++){
+      const f=bySeed[s][b];
+      let rank=s;
+      // two planted mistakes: a duplicated rank and an impossible date
+      if(b===2 && s===14) rank=3;
+      const d = (b===1 && s===11) ? '13/40/2027' : `${(f.i%12)+1}/${((f.i*3)%27)+1}/2027`;
+      out.push(`${rank}\t${b+1}\t${f.name}\t${d}`);
+    }
+  }
+  document.getElementById('paste').value=out.join('\n');
+  parse();
+}
+</script>
+</body>
+</html>
