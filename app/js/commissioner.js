@@ -208,11 +208,55 @@ export async function renderSeasonsAdmin() {
     }
     return `<div class="sncard">
       <div class="snhead"><b>${sn.year}</b><span class="snstate st-${sn.state}">${STATE_LABEL[sn.state]}</span></div>
-      <div class="snnote">${note}</div>${action}</div>`;
+      <div class="snnote">${note}</div>
+      <div style="display:flex; gap:8px;">
+        ${action}
+        <button class="secondary" data-export="${sn.id}|${sn.year}">Export</button>
+      </div></div>`;
   }));
 
   listEl.innerHTML = cards.join('');
   listEl.querySelectorAll('[data-act]').forEach((btn) => btn.addEventListener('click', () => seasonAction(btn.dataset.act)));
+  listEl.querySelectorAll('[data-export]').forEach((btn) => btn.addEventListener('click', () => {
+    const [id, year] = btn.dataset.export.split('|');
+    exportSeason(id, year);
+  }));
+}
+
+// One-button disaster-recovery dump: everything needed to rebuild this
+// season from scratch (spec section 11 — free-tier Supabase has no
+// automatic backups).
+async function exportSeason(seasonId, year) {
+  const [{ data: season }, { data: films }, { data: players }, { data: brackets }] = await Promise.all([
+    supabase.from('seasons').select('*').eq('id', seasonId).single(),
+    supabase.from('films').select('*').eq('season_id', seasonId),
+    supabase.from('players').select('*'),
+    supabase.from('brackets').select('*').eq('season_id', seasonId),
+  ]);
+
+  const bracketIds = (brackets || []).map((b) => b.id);
+  const { data: picks } = bracketIds.length
+    ? await supabase.from('picks').select('*').in('bracket_id', bracketIds)
+    : { data: [] };
+
+  const payload = {
+    exported_at: new Date().toISOString(),
+    season,
+    films,
+    players,
+    brackets,
+    picks,
+  };
+
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `box-office-bracket-${year}-export.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 }
 
 async function seasonAction(act) {

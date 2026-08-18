@@ -1,0 +1,22 @@
+name: Keep Supabase awake
+
+# Supabase pauses free-tier projects after 7 days with no activity. This runs
+# once a day and makes one trivial read against the database — plenty of
+# margin against a missed or failed run. See BUILD-SPEC.md section 11.
+on:
+  schedule:
+    - cron: '23 11 * * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Query Supabase
+        run: |
+          curl -sf -o /dev/null \
+            "https://jqcdjkncdfppmdkndafl.supabase.co/rest/v1/seasons?select=id&limit=1" \
+            -H "apikey: ${SUPABASE_ANON_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_ANON_KEY}"
+        env:
+          SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpxY2Rqa25jZGZwcG1ka25kYWZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY4MjQ5NTYsImV4cCI6MjEwMjQwMDk1Nn0.gTNYBBFEDF0rIyvH70IyFDHa2XZZAor3q2qQnBnv8hY
