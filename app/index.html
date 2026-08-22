@@ -200,6 +200,52 @@
   .livechip{font-family:'IBM Plex Mono'; font-size:9px; font-weight:700; letter-spacing:1px;
            color:var(--gold); border:1px solid rgba(240,181,75,.45); border-radius:20px; padding:2px 6px;}
 
+  /* ---------- TOURNAMENT: segmented toggle ---------- */
+  .segtoggle{display:flex; gap:4px; padding:0 16px 11px; background:var(--bg);}
+  .seg{flex:1; width:auto; margin-top:0; background:#111118; border:1px solid var(--card-line);
+       color:var(--txt-dim); font-family:'IBM Plex Mono'; font-size:10.5px; font-weight:700; letter-spacing:.6px;
+       padding:8px 6px; border-radius:8px;}
+  .seg.on{background:var(--gold); border-color:var(--gold); color:#17130A;}
+
+  /* ---------- TOURNAMENT: full bracket (pan/zoom) ---------- */
+  .fb-viewport{position:absolute; inset:0; overflow:hidden; touch-action:none; overscroll-behavior:none;
+               background:var(--bg); cursor:grab;}
+  .fb-viewport.dragging{cursor:grabbing;}
+  .fb-stage{position:absolute; top:0; left:0; transform-origin:0 0; will-change:transform;}
+  .fb-lines{position:absolute; left:0; top:0; pointer-events:none; overflow:visible;}
+
+  .fb-m{position:absolute; width:160px; border-radius:7px; overflow:hidden;
+        background:var(--card); border:1px solid var(--card-line);
+        background-image:linear-gradient(180deg, rgba(255,255,255,.05) 0%, rgba(255,255,255,0) 50%);}
+  .fb-row{display:flex; align-items:center; gap:6px; padding:6px 8px; height:31px; position:relative;}
+  .fb-row + .fb-row{border-top:1px solid var(--seam);}
+  .fb-sd{font-family:'IBM Plex Mono'; font-size:8px; font-weight:600; color:var(--txt-dim); flex:0 0 auto;}
+  .fb-nm{font-size:10.5px; font-weight:700; letter-spacing:-.1px; text-transform:uppercase; color:var(--txt);
+        flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .fb-fg{font-family:'IBM Plex Mono'; font-size:8.5px; font-weight:600; color:var(--txt-dim); flex:0 0 auto;}
+
+  .fb-row.won{background:rgba(95,201,122,.13);}
+  .fb-row.won .fb-nm{color:#E8FBEE;} .fb-row.won .fb-fg{color:var(--green);} .fb-row.won .fb-sd{color:var(--green);}
+  .fb-row.lost .fb-nm{color:#82828E; text-decoration:line-through; text-decoration-thickness:2px;
+                text-decoration-color:currentColor; -webkit-text-decoration-color:currentColor;}
+  .fb-row.lost .fb-fg, .fb-row.lost .fb-sd{color:#63636F;}
+  .fb-row.tbd .fb-nm{color:var(--txt-dim); font-style:italic; font-weight:600; text-transform:none;}
+  .fb-row.tbd .fb-fg{color:#63636F;}
+  .fb-m.champ{width:186px; border-color:var(--gold-dim); box-shadow:0 0 22px -6px rgba(240,181,75,.5);}
+  .fb-m.champ .fb-row{height:35px;}
+
+  .fb-regionlab{position:absolute; font-family:'IBM Plex Mono'; font-size:12px; letter-spacing:3px;
+             color:var(--txt-dim); white-space:nowrap; writing-mode:vertical-rl; transform:rotate(180deg);
+             display:flex; align-items:center; justify-content:center;}
+  .fb-roundlab{position:absolute; font-family:'IBM Plex Mono'; font-size:9.5px; letter-spacing:1.8px;
+            color:#5C5C6B; white-space:nowrap; text-align:center;}
+
+  .fb-ctrl{position:absolute; bottom:14px; left:50%; transform:translateX(-50%); z-index:20; display:flex; gap:4px;
+        background:rgba(0,0,0,.72); border:1px solid var(--card-line); border-radius:20px; padding:4px;
+        backdrop-filter:blur(6px);}
+  .fb-ctrl button{width:auto; margin-top:0; background:none; border:none; color:var(--txt-dim); font-family:'IBM Plex Mono'; font-size:9.5px;
+               font-weight:600; letter-spacing:.5px; padding:6px 11px; border-radius:16px;}
+
   /* ---------- NAV ---------- */
   .nav{flex:0 0 auto; display:flex; border-top:1px solid var(--card-line); background:var(--bg);}
   .nav button{flex:1; background:none; border:none; cursor:pointer; padding:10px 2px 12px;
@@ -351,10 +397,22 @@
             <div class="hleft"><div class="rd" id="toRound">Round 1</div></div>
             <div class="whoami">MASTER BRACKET</div>
           </div>
+          <div class="segtoggle">
+            <button class="seg on" id="seg-rbr">ROUND BY ROUND</button>
+            <button class="seg" id="seg-full">FULL BRACKET</button>
+          </div>
         </div>
-        <div class="bracket-body">
+        <div class="bracket-body" id="tournament-rbr">
           <div class="viewport" id="toViewport"><div class="plane" id="toPlane"></div></div>
           <div id="tournament-empty"></div>
+        </div>
+        <div class="bracket-body" id="tournament-full" style="display:none;">
+          <div class="fb-viewport" id="fbViewport"><div class="fb-stage" id="fbStage"></div></div>
+          <div class="fb-ctrl">
+            <button id="fb-fit">FIT</button>
+            <button id="fb-zoomin">+</button>
+            <button id="fb-zoomout">−</button>
+          </div>
         </div>
       </div>
 

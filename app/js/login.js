@@ -2,6 +2,7 @@ import { supabase } from './supabaseClient.js';
 import { renderBracket } from './bracket.js';
 import { renderStandings } from './standings.js';
 import { renderTournament } from './tournament.js';
+import { renderFullBracket } from './fullbracket.js';
 import { renderProfile } from './profile.js';
 import { goTab } from './nav.js';
 import { openScores, openSeasonsAdmin, renderScores } from './commissioner.js';
@@ -124,6 +125,25 @@ document.querySelectorAll('.nav button').forEach((btn) => {
     if (tab === 'standings') renderStandings(currentSession);
     if (tab === 'tournament') renderTournament();
   });
+});
+
+const segRbr = document.getElementById('seg-rbr');
+const segFull = document.getElementById('seg-full');
+const tournamentRbr = document.getElementById('tournament-rbr');
+const tournamentFull = document.getElementById('tournament-full');
+
+segRbr.addEventListener('click', () => {
+  segRbr.classList.add('on');
+  segFull.classList.remove('on');
+  tournamentRbr.style.display = 'block';
+  tournamentFull.style.display = 'none';
+});
+segFull.addEventListener('click', () => {
+  segFull.classList.add('on');
+  segRbr.classList.remove('on');
+  tournamentRbr.style.display = 'none';
+  tournamentFull.style.display = 'block';
+  renderFullBracket();
 });
 
 async function showSignedIn(session) {
