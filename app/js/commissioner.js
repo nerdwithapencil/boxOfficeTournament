@@ -128,8 +128,14 @@ async function saveFilm(id) {
     .eq('id', id);
 
   if (error) { alert(error.message); return; }
+
+  // We already know the new values — update local state instead of a second
+  // round-trip to re-fetch all 64 films just to redraw one row.
+  m.title = title;
+  m.release_date = release_date;
+  m.score = score;
+
   openId = null;
-  await loadFilms();
   renderScores();
   showToast('Saved');
 }
