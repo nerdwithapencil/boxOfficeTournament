@@ -71,7 +71,7 @@ function build() {
   cacheEls();
 }
 
-const GAP = 14, LABEL_H = 22, TOP_PAD = 30, MIN_BASE = 104;
+const GAP = 8, LABEL_H = 18, TOP_PAD = 30, MIN_BASE = 90;
 let focus = 1, targetFocus = 1, focusAnim = null, BASE = MIN_BASE, currentRound = 1, colW = 0;
 const els = {};
 const vp = () => document.getElementById('toViewport');
