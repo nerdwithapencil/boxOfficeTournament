@@ -105,7 +105,17 @@ let focus = 1, targetFocus = 1, focusAnim = null, BASE = MIN_BASE, currentRound 
 const els = {};
 const vp = () => document.getElementById('viewport');
 const pitch = (r) => BASE * Math.pow(2, r - focus);
-const centerOf = (r, i) => TOP_PAD + (i + 0.5) * pitch(r);
+const EXTRA_GROUP_GAP = 20;
+// extra breathing room before each bracket group (rounds 1-3, where group
+// labels show). The halving relationship between consecutive rounds' group
+// sizes keeps this consistent for both children of a round(r+1) matchup, so
+// it doesn't disturb the pitch-doubling alignment.
+function groupOffset(r, i) {
+  if (r > 3) return 0;
+  const groupSize = roundsInfo[r - 1].pairs / 4;
+  return EXTRA_GROUP_GAP * Math.floor(i / groupSize);
+}
+const centerOf = (r, i) => TOP_PAD + (i + 0.5) * pitch(r) + groupOffset(r, i);
 
 function groupLabel(r, i) {
   if (r >= 4) return null;

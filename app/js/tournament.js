@@ -76,7 +76,13 @@ let focus = 1, targetFocus = 1, focusAnim = null, BASE = MIN_BASE, currentRound 
 const els = {};
 const vp = () => document.getElementById('toViewport');
 const pitch = (r) => BASE * Math.pow(2, r - focus);
-const centerOf = (r, i) => TOP_PAD + (i + 0.5) * pitch(r);
+const EXTRA_GROUP_GAP = 20;
+function groupOffset(r, i) {
+  if (r > 3) return 0;
+  const groupSize = ROUNDS_INFO[r - 1].pairs / 4;
+  return EXTRA_GROUP_GAP * Math.floor(i / groupSize);
+}
+const centerOf = (r, i) => TOP_PAD + (i + 0.5) * pitch(r) + groupOffset(r, i);
 
 function cacheEls() {
   for (let r = 1; r <= NR; r++) {
