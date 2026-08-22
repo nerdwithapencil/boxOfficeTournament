@@ -77,7 +77,7 @@ function build() {
       const w = r === NR ? 186 : CARD_W;
       const x = r === NR ? colX(5) - (186 - CARD_W) / 2 : colX(p.col);
       const hh = r === NR ? 70 : CARD_H;
-      h += `<div class="fb-m ${r === NR ? 'champ' : ''}" style="left:${x}px; top:${p.y - hh / 2}px;">${rowHTML(resolver.slot(r, i, 'a'), res, isTie)}${rowHTML(resolver.slot(r, i, 'b'), res, isTie)}</div>`;
+      h += `<div class="fb-m ${r === NR ? 'fb-champ' : ''}" style="left:${x}px; top:${p.y - hh / 2}px;">${rowHTML(resolver.slot(r, i, 'a'), res, isTie)}${rowHTML(resolver.slot(r, i, 'b'), res, isTie)}</div>`;
     }
   }
   stage.innerHTML = h + `<svg class="fb-lines" id="fbLines" width="${STAGE_W}" height="${STAGE_H}"></svg>`;

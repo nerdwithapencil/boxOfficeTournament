@@ -131,18 +131,23 @@ const segRbr = document.getElementById('seg-rbr');
 const segFull = document.getElementById('seg-full');
 const tournamentRbr = document.getElementById('tournament-rbr');
 const tournamentFull = document.getElementById('tournament-full');
+const toRoundEl = document.getElementById('toRound');
+let savedRoundLabel = toRoundEl.textContent;
 
 segRbr.addEventListener('click', () => {
   segRbr.classList.add('on');
   segFull.classList.remove('on');
   tournamentRbr.style.display = 'block';
   tournamentFull.style.display = 'none';
+  toRoundEl.textContent = savedRoundLabel;
 });
 segFull.addEventListener('click', () => {
   segFull.classList.add('on');
   segRbr.classList.remove('on');
   tournamentRbr.style.display = 'none';
   tournamentFull.style.display = 'block';
+  savedRoundLabel = toRoundEl.textContent;
+  toRoundEl.textContent = 'Full Bracket';
   renderFullBracket();
 });
 
