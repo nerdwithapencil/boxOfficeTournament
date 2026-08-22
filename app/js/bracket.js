@@ -100,7 +100,7 @@ const totalPoints = () => { let t = 0; for (let r = 1; r <= NR; r++) t += roundP
    for why: pitch doubles each round, so alignment is a property of the
    maths, not something to calculate).
    ========================================================================= */
-const GAP = 4, LABEL_H = 14, TAB_H = 12, TOP_PAD = 30, MIN_BASE = 80;
+const GAP = 2, LABEL_H = 10, TAB_H = 8, TOP_PAD = 30, MIN_BASE = 70;
 let focus = 1, targetFocus = 1, focusAnim = null, BASE = MIN_BASE, currentRound = 1, colW = 0;
 const els = {};
 const vp = () => document.getElementById('viewport');
