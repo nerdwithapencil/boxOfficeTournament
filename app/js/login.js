@@ -1,5 +1,5 @@
 import { supabase } from './supabaseClient.js';
-import { renderBracket } from './bracket.js';
+import { renderBracket, getViewedPlayer } from './bracket.js';
 import { renderStandings } from './standings.js';
 import { renderTournament } from './tournament.js';
 import { renderFullBracket } from './fullbracket.js';
@@ -69,7 +69,10 @@ form.addEventListener('submit', async (e) => {
 
 profileBtn.addEventListener('click', () => {
   profileOverlay.classList.add('open');
-  if (currentSession) renderProfile(currentSession);
+  if (!currentSession) return;
+  const viewed = getViewedPlayer();
+  const isOwn = !viewed.id || viewed.id === currentSession.user.id;
+  renderProfile(currentSession, isOwn ? undefined : { playerId: viewed.id, playerName: viewed.name });
 });
 closeProfileBtn.addEventListener('click', () => profileOverlay.classList.remove('open'));
 

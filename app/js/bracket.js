@@ -347,12 +347,19 @@ function updateHeader() {
    ========================================================================= */
 let booted = false;
 let ownSession = null, ownDisplayName = '';
+let viewedPlayerId = null, viewedPlayerName = '';
+
+export function getViewedPlayer() {
+  return { id: viewedPlayerId, name: viewedPlayerName };
+}
 
 export async function renderBracket(session, displayName, opts = {}) {
   ownSession = session;
   ownDisplayName = displayName;
   const targetId = opts.playerId || session.user.id;
   const viewingOther = targetId !== session.user.id;
+  viewedPlayerId = targetId;
+  viewedPlayerName = viewingOther ? opts.playerName : displayName;
 
   const emptyState = document.getElementById('bracket-empty');
   const backBtn = document.getElementById('bracket-back-btn');

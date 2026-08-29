@@ -433,22 +433,24 @@
         <div class="sectionlab">SEASONS</div>
         <div id="profileSeasons"></div>
 
-        <div id="commissioner-links" style="display:none;">
-          <button id="comm-scores-btn" class="secondary" style="margin-top:16px;">Commissioner · Scores</button>
-          <button id="comm-seasons-btn" class="secondary" style="margin-top:9px;">Commissioner · Seasons</button>
-        </div>
-
-        <button id="edit-name-btn" class="link-btn">Edit name</button>
-        <form id="name-form" style="display:none; margin-top:12px;">
-          <label for="display-name">Display name</label>
-          <input id="display-name" type="text" required autocomplete="name" />
-          <div style="display:flex; gap:8px; margin-top:14px;">
-            <button type="submit">Save</button>
-            <button type="button" id="cancel-name-btn" class="secondary">Cancel</button>
+        <div id="profile-account-section">
+          <div id="commissioner-links" style="display:none;">
+            <button id="comm-scores-btn" class="secondary" style="margin-top:16px;">Commissioner · Scores</button>
+            <button id="comm-seasons-btn" class="secondary" style="margin-top:9px;">Commissioner · Seasons</button>
           </div>
-        </form>
 
-        <button id="logout-btn" class="secondary" style="margin-top:20px;">Sign out</button>
+          <button id="edit-name-btn" class="link-btn">Edit name</button>
+          <form id="name-form" style="display:none; margin-top:12px;">
+            <label for="display-name">Display name</label>
+            <input id="display-name" type="text" required autocomplete="name" />
+            <div style="display:flex; gap:8px; margin-top:14px;">
+              <button type="submit">Save</button>
+              <button type="button" id="cancel-name-btn" class="secondary">Cancel</button>
+            </div>
+          </form>
+
+          <button id="logout-btn" class="secondary" style="margin-top:20px;">Sign out</button>
+        </div>
       </div>
     </div>
 
