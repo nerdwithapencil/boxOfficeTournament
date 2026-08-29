@@ -3,6 +3,23 @@ import { getCurrentSeason, getSeasonFilms } from './season.js';
 import { buildEntries } from './standings.js';
 import { rankByPoints } from './scoring.js';
 
+// One star per season this player finished 1st in. Currently always 0 (no
+// season has ever ended yet), but the logic is here so it starts working
+// the moment the first season does.
+async function countWins(targetId) {
+  const { data: endedSeasons } = await supabase.from('seasons').select('id').eq('state', 'ended');
+  if (!endedSeasons?.length) return 0;
+  let wins = 0;
+  for (const sn of endedSeasons) {
+    const films = await getSeasonFilms(sn.id);
+    const entries = await buildEntries(sn, films, { user: { id: targetId } });
+    const ranked = rankByPoints(entries);
+    const entry = ranked.find((e) => e.playerId === targetId);
+    if (entry && entry.place === 1) wins++;
+  }
+  return wins;
+}
+
 // v1 shows only the current season (no season history yet — this app has
 // only ever run one season). Future seasons will just accumulate more rows
 // here once they exist, same shape as files/profile-prototype.html.
@@ -34,6 +51,9 @@ export async function renderProfile(session, target) {
   whoEl.textContent = player?.display_name ?? (isOwn ? '' : target.playerName);
   roleEl.textContent = player?.is_commissioner ? 'Commissioner' : 'Player';
   if (isOwn) commissionerLinks.style.display = player?.is_commissioner ? 'block' : 'none';
+
+  const wins = await countWins(targetId);
+  ticketsEl.textContent = '⭐'.repeat(wins);
 
   const season = await getCurrentSeason();
   if (!season) return;
