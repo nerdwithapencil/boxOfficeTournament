@@ -32,7 +32,6 @@ export async function renderProfile(session, target) {
   const targetId = target?.playerId || session.user.id;
 
   const whoEl = document.getElementById('who');
-  const roleEl = document.getElementById('role');
   const seasonsEl = document.getElementById('profileSeasons');
   const ticketsEl = document.getElementById('profileTickets');
   const accountSection = document.getElementById('profile-account-section');
@@ -49,7 +48,6 @@ export async function renderProfile(session, target) {
     .single();
 
   whoEl.textContent = player?.display_name ?? (isOwn ? '' : target.playerName);
-  roleEl.textContent = player?.is_commissioner ? 'Commissioner' : 'Player';
   if (isOwn) commissionerLinks.style.display = player?.is_commissioner ? 'block' : 'none';
 
   const wins = await countWins(targetId);
@@ -65,11 +63,16 @@ export async function renderProfile(session, target) {
   if (!entry) return;
 
   const isLive = season.state !== 'ended';
+  const medal = isLive ? '' : { 1: '🏆', 2: '🥈', 3: '🥉' }[entry.place] || '';
+  // "hit"/"miss" only mean anything once a season is actually over — a live
+  // season's champion pick just stays plain gold, same as My Bracket/Standings
+  // show alive-vs-eliminated, not a final correctness verdict.
+  const champClass = isLive ? '' : entry.championAlive ? 'hit' : 'miss';
   seasonsEl.innerHTML = `<div class="seasonrow ${isLive ? 'live' : ''}">
-    <span class="pl">${entry.place}</span>
+    <span class="pl ${medal ? 'medal' : ''}">${medal || entry.place}</span>
     <div class="mid"><div class="yrline">
       <span class="yr">${season.year}</span>
-      <span class="champ ${entry.championAlive ? '' : 'dead'}">${entry.champion ? entry.champion.title : '—'}</span>
+      <span class="champ ${champClass}">${entry.champion ? entry.champion.title : '—'}</span>
       ${isLive ? '<span class="livechip">LIVE</span>' : ''}
     </div></div>
     <div class="pts"><b>${entry.total}</b><i>PTS</i></div>

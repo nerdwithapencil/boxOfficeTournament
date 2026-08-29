@@ -19,7 +19,6 @@ const profileBtn = document.getElementById('profile-btn');
 const profileOverlay = document.getElementById('profileOverlay');
 const closeProfileBtn = document.getElementById('close-profile-btn');
 const whoEl = document.getElementById('who');
-const roleEl = document.getElementById('role');
 const logoutBtn = document.getElementById('logout-btn');
 const editNameBtn = document.getElementById('edit-name-btn');
 const cancelNameBtn = document.getElementById('cancel-name-btn');
@@ -168,7 +167,6 @@ async function showSignedIn(session) {
   loginScreen.style.display = 'none';
   appShell.style.display = 'flex';
   whoEl.textContent = displayName;
-  roleEl.textContent = player?.is_commissioner ? 'Commissioner' : 'Player';
   commissionerLinks.style.display = player?.is_commissioner ? 'block' : 'none';
 
   await renderBracket(session, displayName);
