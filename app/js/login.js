@@ -31,6 +31,9 @@ const closeCommScoresBtn = document.getElementById('close-comm-scores-btn');
 const closeCommSeasonsBtn = document.getElementById('close-comm-seasons-btn');
 const commScoresSearch = document.getElementById('comm-scores-search');
 const commScoresClear = document.getElementById('comm-scores-clear');
+const feedbackText = document.getElementById('feedback-text');
+const feedbackSendBtn = document.getElementById('feedback-send-btn');
+const feedbackStatus = document.getElementById('feedback-status');
 
 let currentSession = null;
 let currentUserId = null;
@@ -78,6 +81,33 @@ closeProfileBtn.addEventListener('click', () => profileOverlay.classList.remove(
 logoutBtn.addEventListener('click', async () => {
   await supabase.auth.signOut();
   window.location.reload();
+});
+
+feedbackSendBtn.addEventListener('click', async () => {
+  const message = feedbackText.value.trim();
+  if (!message || !currentUserId) return;
+
+  feedbackSendBtn.disabled = true;
+  feedbackStatus.textContent = '';
+
+  const { error } = await supabase.from('feedback').insert({
+    player_id: currentUserId,
+    player_name: whoEl.textContent,
+    message,
+  });
+
+  feedbackSendBtn.disabled = false;
+
+  if (error) {
+    feedbackStatus.textContent = error.message;
+    feedbackStatus.className = 'status error';
+    return;
+  }
+
+  feedbackText.value = '';
+  feedbackStatus.textContent = 'Thanks — sent!';
+  feedbackStatus.className = 'status success';
+  setTimeout(() => { feedbackStatus.textContent = ''; }, 2500);
 });
 
 editNameBtn.addEventListener('click', () => {

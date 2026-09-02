@@ -23,13 +23,14 @@
   .title{font-size:26px; font-weight:800; color:var(--cream); letter-spacing:-.5px; margin-bottom:32px; text-align:center;}
   .card{width:100%; background:var(--card); border:1px solid var(--card-line); border-radius:14px; padding:24px; box-shadow:0 1px 0 rgba(255,255,255,.04) inset, 0 12px 28px rgba(0,0,0,.35);}
   label{display:block; font-family:'IBM Plex Mono'; font-size:11px; font-weight:600; letter-spacing:.5px; color:var(--txt-dim); text-transform:uppercase; margin-bottom:8px;}
-  input[type="email"], input[type="text"]{
+  input[type="email"], input[type="text"], textarea{
     width:100%; font-size:16px; font-family:'Archivo'; color:var(--cream);
     background:#111118; border:1px solid var(--card-line); border-radius:9px;
     padding:13px 14px; outline:none;
   }
-  input[type="email"]:focus, input[type="text"]:focus{border-color:var(--gold);}
-  input::placeholder{color:var(--txt-dim);}
+  textarea{resize:vertical;}
+  input[type="email"]:focus, input[type="text"]:focus, textarea:focus{border-color:var(--gold);}
+  input::placeholder, textarea::placeholder{color:var(--txt-dim);}
   button{
     width:100%; margin-top:14px; padding:13px 14px; border:none; border-radius:9px;
     background:var(--gold); color:#17130A; font-family:'Archivo'; font-size:15px; font-weight:700;
@@ -454,6 +455,11 @@
           </form>
 
           <button id="logout-btn" class="secondary" style="margin-top:20px;">Sign out</button>
+
+          <div class="sectionlab">FEEDBACK</div>
+          <textarea id="feedback-text" placeholder="Bugs, notes, ideas — anything." rows="3"></textarea>
+          <button id="feedback-send-btn" class="secondary" style="margin-top:10px;">Send Feedback</button>
+          <div id="feedback-status" class="status"></div>
         </div>
       </div>
     </div>
