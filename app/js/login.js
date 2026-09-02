@@ -6,6 +6,7 @@ import { renderFullBracket } from './fullbracket.js';
 import { renderProfile } from './profile.js';
 import { goTab } from './nav.js';
 import { openScores, openSeasonsAdmin, renderScores, commitStandings } from './commissioner.js';
+import './keyboard-scroll.js';
 
 const form = document.getElementById('login-form');
 const nameInput = document.getElementById('name');
