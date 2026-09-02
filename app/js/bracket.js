@@ -359,9 +359,9 @@ export function goToOwnBracket() {
 
 export async function renderBracket(session, displayName, opts = {}) {
   ownSession = session;
-  ownDisplayName = displayName;
   const targetId = opts.playerId || session.user.id;
   const viewingOther = targetId !== session.user.id;
+  if (!viewingOther) ownDisplayName = displayName;
   viewedPlayerId = targetId;
   viewedPlayerName = viewingOther ? opts.playerName : displayName;
 
