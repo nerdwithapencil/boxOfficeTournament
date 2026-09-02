@@ -1,29 +1,54 @@
 import { supabase } from './supabaseClient.js';
-import { getCurrentSeason, getSeasonFilms } from './season.js';
+import { getAllSeasons, getSeasonFilms } from './season.js';
 import { buildEntries } from './standings.js';
 import { rankByPoints } from './scoring.js';
 
-// One star per season this player finished 1st in. Currently always 0 (no
-// season has ever ended yet), but the logic is here so it starts working
-// the moment the first season does.
-async function countWins(targetId) {
-  const { data: endedSeasons } = await supabase.from('seasons').select('id').eq('state', 'ended');
-  if (!endedSeasons?.length) return 0;
-  let wins = 0;
-  for (const sn of endedSeasons) {
-    const films = await getSeasonFilms(sn.id);
-    const entries = await buildEntries(sn, films, { user: { id: targetId } });
-    const ranked = rankByPoints(entries);
-    const entry = ranked.find((e) => e.playerId === targetId);
-    if (entry && entry.place === 1) wins++;
+// One row per season this player has data for — real app-tracked seasons
+// (live/ended, computed from films+picks) and pre-app historical seasons
+// (is_historical, read directly from season_results) both flow through here
+// so Profile shows one unified history list regardless of source.
+async function getSeasonHistory(targetId) {
+  const seasons = await getAllSeasons();
+  const rows = [];
+
+  for (const sn of seasons) {
+    if (sn.is_historical) {
+      const { data: r } = await supabase
+        .from('season_results')
+        .select('place, points, champion_title, champion_hit')
+        .eq('season_id', sn.id)
+        .eq('player_id', targetId)
+        .maybeSingle();
+      if (!r) continue;
+      rows.push({
+        year: sn.year,
+        isLive: false,
+        place: r.place,
+        points: r.points,
+        championTitle: r.champion_title,
+        championHit: r.champion_hit,
+      });
+    } else {
+      if (sn.state !== 'live' && sn.state !== 'ended') continue;
+      const films = await getSeasonFilms(sn.id);
+      const entries = await buildEntries(sn, films, { user: { id: targetId } });
+      const ranked = rankByPoints(entries);
+      const entry = ranked.find((e) => e.playerId === targetId);
+      if (!entry) continue;
+      const isLive = sn.state !== 'ended';
+      rows.push({
+        year: sn.year,
+        isLive,
+        place: entry.place,
+        points: entry.total,
+        championTitle: entry.champion?.title,
+        championHit: isLive ? null : entry.championAlive,
+      });
+    }
   }
-  return wins;
+  return rows;
 }
 
-// v1 shows only the current season (no season history yet — this app has
-// only ever run one season). Future seasons will just accumulate more rows
-// here once they exist, same shape as files/profile-prototype.html.
-//
 // `target` is optional — {playerId, playerName} to view someone else's
 // profile (read-only: no edit-name/sign-out/commissioner controls), omit
 // entirely to view your own.
@@ -50,31 +75,24 @@ export async function renderProfile(session, target) {
   whoEl.textContent = player?.display_name ?? (isOwn ? '' : target.playerName);
   if (isOwn) commissionerLinks.style.display = player?.is_commissioner ? 'block' : 'none';
 
-  const wins = await countWins(targetId);
+  const history = await getSeasonHistory(targetId);
+
+  const wins = history.filter((h) => !h.isLive && h.place === 1).length;
   ticketsEl.textContent = '⭐'.repeat(wins);
 
-  const season = await getCurrentSeason();
-  if (!season) return;
-
-  const films = await getSeasonFilms(season.id);
-  const entries = await buildEntries(season, films, session);
-  const ranked = rankByPoints(entries);
-  const entry = ranked.find((e) => e.playerId === targetId);
-  if (!entry) return;
-
-  const isLive = season.state !== 'ended';
-  const medal = isLive ? '' : { 1: '🏆', 2: '🥈', 3: '🥉' }[entry.place] || '';
-  // "hit"/"miss" only mean anything once a season is actually over — a live
-  // season's champion pick just stays plain gold, same as My Bracket/Standings
-  // show alive-vs-eliminated, not a final correctness verdict.
-  const champClass = isLive ? '' : entry.championAlive ? 'hit' : 'miss';
-  seasonsEl.innerHTML = `<div class="seasonrow ${isLive ? 'live' : ''}">
-    <span class="pl ${medal ? 'medal' : ''}">${medal || entry.place}</span>
-    <div class="mid"><div class="yrline">
-      <span class="yr">${season.year}</span>
-      <span class="champ ${champClass}">${entry.champion ? entry.champion.title : '—'}</span>
-      ${isLive ? '<span class="livechip">LIVE</span>' : ''}
-    </div></div>
-    <div class="pts"><b>${entry.total}</b><i>PTS</i></div>
-  </div>`;
+  seasonsEl.innerHTML = history
+    .map((h) => {
+      const medal = h.isLive ? '' : { 1: '🏆', 2: '🥈', 3: '🥉' }[h.place] || '';
+      const champClass = h.isLive || h.championHit == null ? '' : h.championHit ? 'hit' : 'miss';
+      return `<div class="seasonrow ${h.isLive ? 'live' : ''}">
+        <span class="pl ${medal ? 'medal' : ''}">${medal || h.place}</span>
+        <div class="mid"><div class="yrline">
+          <span class="yr">${h.year}</span>
+          <span class="champ ${champClass}">${h.championTitle || '—'}</span>
+          ${h.isLive ? '<span class="livechip">LIVE</span>' : ''}
+        </div></div>
+        <div class="pts"><b>${h.points}</b><i>PTS</i></div>
+      </div>`;
+    })
+    .join('');
 }

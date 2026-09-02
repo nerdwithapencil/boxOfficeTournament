@@ -22,7 +22,7 @@ export async function getSeasonFilms(seasonId) {
 export async function getAllSeasons() {
   const { data } = await supabase
     .from('seasons')
-    .select('id, year, state, lock_date')
+    .select('id, year, state, lock_date, is_historical')
     .order('year', { ascending: false });
   return data || [];
 }
