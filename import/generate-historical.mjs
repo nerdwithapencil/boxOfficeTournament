@@ -23,6 +23,81 @@ const PLAYERS = {
 // omitted from `results` — nothing is lost, since there's no profile page
 // for a non-member to ever appear on.
 const SEASONS = {
+  2023: {
+    winner: 'Barbie',
+    results: [
+      ['Alex', 1, 98, 'Spider-Man: Across the Spiderverse'],
+      ['Nick', 2, 83, 'The Super Mario Bros. Movie'],
+      ['Andrew', 4, 77, 'Guardians of the Galaxy Vol. 3'],
+      ['Umar', 4, 77, 'The Super Mario Bros. Movie'],
+      ['Daniel', 6, 76, 'Guardians of the Galaxy Vol. 3'],
+      ['Josh', 6, 76, 'The Little Mermaid'],
+      ['Sean', 8, 75, 'Guardians of the Galaxy Vol. 3'],
+      ['Jason', 9, 68, 'The Little Mermaid'],
+      ['Minnesota', 10, 66, 'Mission: Impossible - Dead Reckoning Part 1'],
+      ['Adam', 10, 66, 'Fast X'],
+      ['Ben', 13, 56, 'Ant-Man and the Wasp: Quantumania'],
+    ],
+  },
+  2022: {
+    winner: 'Doctor Strange in the Multiverse of Madness',
+    results: [
+      ['Alex', 1, 135, 'Doctor Strange in the Multiverse of Madness'],
+      ['Josh', 2, 127, 'Doctor Strange in the Multiverse of Madness'],
+      ['Ben', 3, 107, 'Avatar: The Way of Water'],
+      ['Jason', 4, 99, 'Thor: Love and Thunder'],
+      ['Andrew', 5, 96, 'Avatar: The Way of Water'],
+      ['Minnesota', 6, 84, 'Thor: Love and Thunder'],
+      ['Nick', 7, 81, 'The Super Mario Bros. Movie'],
+      ['Daniel', 9, 77, 'Avatar: The Way of Water'],
+      ['Sean', 10, 64, 'Black Panther: Wakanda Forever'],
+    ],
+  },
+  2021: {
+    winner: 'Spider-Man: No Way Home',
+    results: [
+      ['Nick', 1, 124, 'Spider-Man: No Way Home'],
+      ['Andrew', 2, 118, 'Spider-Man: No Way Home'],
+      ['Minnesota', 3, 110, 'Spider-Man: No Way Home'],
+      ['Josh', 4, 104, 'Spider-Man: No Way Home'],
+      ['Umar', 6, 79, 'The Matrix Resurrections'],
+      ['Jason', 7, 77, 'The Matrix Resurrections'],
+      ['Ben', 8, 65, 'Black Widow'],
+    ],
+  },
+  2020: {
+    winner: 'Bad Boys for Life',
+    results: [
+      ['Minnesota', 3, 41, 'Wonder Woman 1984'],
+      ['Umar', 4, 41, 'Mulan'],
+      ['Andrew', 5, 40, 'Wonder Woman 1984'],
+      ['Jason', 7, 39, 'Wonder Woman 1984'],
+      ['Josh', 7, 39, 'Wonder Woman 1984'],
+      ['Nick', 14, 22, 'Black Widow'],
+      ['Ben', 15, 21, 'Black Widow'],
+      ['Sean', 15, 21, 'Ghostbusters Afterlife'],
+    ],
+  },
+  2019: {
+    winner: 'The Lion King',
+    results: [
+      ['Jason', 1, 159, 'The Lion King'],
+      ['Josh', 2, 159, 'The Lion King'],
+      ['Ben', 4, 141, 'Frozen 2'],
+      ['Umar', 4, 141, 'The Lion King'],
+      ['Minnesota', 7, 130, 'Captain Marvel'],
+      ['Andrew', 8, 127, 'Frozen 2'],
+      ['Sean', 12, 109, 'Captain Marvel'],
+    ],
+  },
+  2018: {
+    winner: 'The Avengers: Infinity War',
+    results: [
+      ['Ben', 1, 160, 'The Avengers: Infinity War'],
+      ['Jason', 3, 136, 'The Avengers: Infinity War'],
+      ['Minnesota', 5, 76, 'Solo - A Star Wars Story'],
+    ],
+  },
   2025: {
     winner: 'A Minecraft Movie',
     results: [
@@ -60,10 +135,18 @@ const SEASONS = {
   },
 };
 
-const esc = (s) => s.replace(/'/g, "''");
-let sql = `-- Historical seasons: ${Object.keys(SEASONS).join(', ')}\n\n`;
+// 2024/2025 were already generated + applied in a prior run (see
+// historical-seasons-import.sql) — re-running with the full SEASONS dict
+// would re-insert them under new random season ids and duplicate them.
+// Only emit years not yet applied here.
+const ALREADY_APPLIED = [2024, 2025];
+const OUTPUT_FILE = 'import/historical-seasons-import-2.sql';
+const yearsToWrite = Object.entries(SEASONS).filter(([year]) => !ALREADY_APPLIED.includes(Number(year)));
 
-for (const [year, { winner, results }] of Object.entries(SEASONS)) {
+const esc = (s) => s.replace(/'/g, "''");
+let sql = `-- Historical seasons: ${yearsToWrite.map(([y]) => y).join(', ')}\n\n`;
+
+for (const [year, { winner, results }] of yearsToWrite) {
   const seasonId = randomUUID();
   sql += `insert into public.seasons (id, year, state, is_historical) values\n`;
   sql += `  ('${seasonId}', ${year}, 'ended', true);\n\n`;
@@ -78,9 +161,9 @@ for (const [year, { winner, results }] of Object.entries(SEASONS)) {
   sql += rows.join(',\n') + ';\n\n';
 }
 
-writeFileSync('import/historical-seasons-import.sql', sql);
-console.log(`Wrote import/historical-seasons-import.sql — ${Object.keys(SEASONS).length} seasons.`);
-for (const [year, { winner, results }] of Object.entries(SEASONS)) {
+writeFileSync(OUTPUT_FILE, sql);
+console.log(`Wrote ${OUTPUT_FILE} — ${yearsToWrite.length} seasons.`);
+for (const [year, { winner, results }] of yearsToWrite) {
   const hits = results.filter(([, , , pick]) => pick === winner).length;
   console.log(`  ${year}: ${results.length} players, winner "${winner}", ${hits} correct picks`);
 }
