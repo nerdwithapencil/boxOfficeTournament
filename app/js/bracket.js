@@ -353,6 +353,10 @@ export function getViewedPlayer() {
   return { id: viewedPlayerId, name: viewedPlayerName };
 }
 
+export function goToOwnBracket() {
+  if (ownSession) renderBracket(ownSession, ownDisplayName);
+}
+
 export async function renderBracket(session, displayName, opts = {}) {
   ownSession = session;
   ownDisplayName = displayName;
@@ -430,7 +434,7 @@ export async function renderBracket(session, displayName, opts = {}) {
     booted = true;
     document.getElementById('bracket-back-btn').addEventListener('click', () => {
       goTab('bracket');
-      renderBracket(ownSession, ownDisplayName);
+      goToOwnBracket();
     });
     const V = vp();
     V.addEventListener('pointerdown', onDown);

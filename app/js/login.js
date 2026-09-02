@@ -1,5 +1,5 @@
 import { supabase } from './supabaseClient.js';
-import { renderBracket, getViewedPlayer } from './bracket.js';
+import { renderBracket, getViewedPlayer, goToOwnBracket } from './bracket.js';
 import { renderStandings } from './standings.js';
 import { renderTournament } from './tournament.js';
 import { renderFullBracket } from './fullbracket.js';
@@ -124,6 +124,7 @@ document.querySelectorAll('.nav button').forEach((btn) => {
   btn.addEventListener('click', () => {
     const tab = btn.dataset.s;
     goTab(tab);
+    if (tab === 'bracket') goToOwnBracket();
     if (tab === 'standings') renderStandings(currentSession);
     if (tab === 'tournament') renderTournament();
   });
