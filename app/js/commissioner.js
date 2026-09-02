@@ -20,6 +20,16 @@ let sortBy = 'release';
 let openId = null;
 const SORTS = [['release', 'RELEASE'], ['seed', 'RANK'], ['name', 'A–Z'], ['score', 'SCORE']];
 
+// Tracks whether any score has been saved since the last "Update Standings"
+// press — independent of whether that score actually moved anyone's rank,
+// since the point is to remind the commissioner a commit is worth doing,
+// not to judge whether it'll matter.
+let scoresDirty = false;
+function setCommitButtonDirty(dirty) {
+  scoresDirty = dirty;
+  document.getElementById('comm-commit-btn')?.classList.toggle('secondary', !dirty);
+}
+
 async function loadFilms() {
   season = await getCurrentSeason();
   if (!season) { films = []; return; }
@@ -137,6 +147,8 @@ async function saveFilm(id) {
   m.release_date = release_date;
   m.score = score;
 
+  if (score !== null) setCommitButtonDirty(true);
+
   openId = null;
   renderScores();
   showToast('Saved');
@@ -154,6 +166,7 @@ export async function openScores() {
   document.getElementById('comm-scores-search').value = '';
   openId = null;
   renderScores();
+  setCommitButtonDirty(scoresDirty);
   document.getElementById('commissionerScoresOverlay').classList.add('open');
 }
 
@@ -177,6 +190,7 @@ export async function commitStandings() {
   }));
   const { error } = await supabase.from('standings_snapshot').upsert(rows, { onConflict: 'season_id,player_id' });
   if (error) { alert(error.message); return; }
+  setCommitButtonDirty(false);
   showToast('Standings updated');
 }
 
