@@ -1,5 +1,7 @@
 import { supabase } from './supabaseClient.js';
 import { getCurrentSeason, getAllSeasons } from './season.js';
+import { buildEntries } from './standings.js';
+import { rankByPoints } from './scoring.js';
 
 /* =========================================================================
    SCORES — ported from files/commissioner-prototype.html. Class names are
@@ -153,6 +155,29 @@ export async function openScores() {
   openId = null;
   renderScores();
   document.getElementById('commissionerScoresOverlay').classList.add('open');
+}
+
+// Standings "movement" is measured against this snapshot, not inferred from
+// film release dates — press after a batch of score edits to make that
+// batch's effect on everyone's rank visible. Editing a title/date without
+// touching any score is harmless to press too: since nobody's points
+// actually changed, the new snapshot comes out identical to the old one and
+// movement still correctly reads as "—" for everyone.
+export async function commitStandings() {
+  if (!season) return;
+  const entries = await buildEntries(season, films, { user: { id: '' } });
+  const ranked = rankByPoints(entries);
+  const takenAt = new Date().toISOString();
+  const rows = ranked.map((e) => ({
+    season_id: season.id,
+    player_id: e.playerId,
+    place: e.place,
+    points: e.total,
+    taken_at: takenAt,
+  }));
+  const { error } = await supabase.from('standings_snapshot').upsert(rows, { onConflict: 'season_id,player_id' });
+  if (error) { alert(error.message); return; }
+  showToast('Standings updated');
 }
 
 /* =========================================================================

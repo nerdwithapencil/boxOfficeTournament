@@ -5,7 +5,7 @@ import { renderTournament } from './tournament.js';
 import { renderFullBracket } from './fullbracket.js';
 import { renderProfile } from './profile.js';
 import { goTab } from './nav.js';
-import { openScores, openSeasonsAdmin, renderScores } from './commissioner.js';
+import { openScores, openSeasonsAdmin, renderScores, commitStandings } from './commissioner.js';
 
 const form = document.getElementById('login-form');
 const nameInput = document.getElementById('name');
@@ -119,6 +119,7 @@ closeCommScoresBtn.addEventListener('click', () => document.getElementById('comm
 closeCommSeasonsBtn.addEventListener('click', () => document.getElementById('commissionerSeasonsOverlay').classList.remove('open'));
 commScoresSearch.addEventListener('input', renderScores);
 commScoresClear.addEventListener('click', () => { commScoresSearch.value = ''; commScoresSearch.focus(); renderScores(); });
+document.getElementById('comm-commit-btn').addEventListener('click', commitStandings);
 
 document.querySelectorAll('.nav button').forEach((btn) => {
   btn.addEventListener('click', () => {

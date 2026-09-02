@@ -6,12 +6,6 @@ import { renderBracket } from './bracket.js';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-function lastOpenedFilm(films) {
-  return films
-    .filter((f) => f.score != null)
-    .reduce((latest, f) => (!latest || f.release_date > latest.release_date ? f : latest), null);
-}
-
 export async function buildEntries(season, films, session) {
   const { data: players } = await supabase.from('players').select('id, display_name');
   const { data: brackets } = await supabase.from('brackets').select('id, player_id').eq('season_id', season.id);
@@ -66,22 +60,24 @@ export async function renderStandings(session) {
 
   const current = rankByPoints(entries);
 
-  // movement: re-score with the most-recently-opened scored film(s) blanked out
-  const lastFilm = lastOpenedFilm(films);
+  // movement: diff against the commissioner's last explicit "Update Standings"
+  // snapshot (see commissioner.js commitStandings) — not inferred from film
+  // release dates, which broke on films with fabricated placeholder dates.
+  const { data: snapshotRows } = await supabase
+    .from('standings_snapshot')
+    .select('player_id, place, taken_at')
+    .eq('season_id', season.id);
+
   let movementByPlayer = {};
-  if (lastFilm) {
-    const prevFilms = films.map((f) =>
-      f.release_date.getTime() === lastFilm.release_date.getTime() ? { ...f, score: null } : f
-    );
-    const prevEntries = await buildEntries(season, prevFilms, session);
-    const prev = rankByPoints(prevEntries);
-    const prevPlaceByPlayer = Object.fromEntries(prev.map((e) => [e.playerId, e.place]));
+  if (snapshotRows?.length) {
+    const snapshotPlaceByPlayer = Object.fromEntries(snapshotRows.map((r) => [r.player_id, r.place]));
     movementByPlayer = Object.fromEntries(
-      current.map((e) => [e.playerId, (prevPlaceByPlayer[e.playerId] ?? e.place) - e.place])
+      current.map((e) => [e.playerId, (snapshotPlaceByPlayer[e.playerId] ?? e.place) - e.place])
     );
-    sinceEl.textContent = `MOVEMENT SINCE ${lastFilm.title.toUpperCase()} OPENED · ${MONTHS[lastFilm.release_date.getMonth()]} ${lastFilm.release_date.getDate()}`;
+    const d = new Date(snapshotRows[0].taken_at);
+    sinceEl.textContent = `MOVEMENT SINCE LAST UPDATE · ${MONTHS[d.getMonth()]} ${d.getDate()}`;
   } else {
-    sinceEl.textContent = 'NO FILMS HAVE OPENED YET';
+    sinceEl.textContent = 'MOVEMENT SINCE LAST UPDATE';
   }
 
   listEl.innerHTML = current
