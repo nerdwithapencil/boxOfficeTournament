@@ -147,8 +147,18 @@
   .ptab.good{color:var(--green); background:rgba(38,58,44,.95); border-color:rgba(95,201,122,.4);}
   .ptab.zero{color:var(--red);   background:rgba(58,34,32,.95); border-color:rgba(224,87,74,.4);}
 
-  #bracket-empty, #tournament-empty{display:none; flex:1; align-items:center; justify-content:center; padding:24px; text-align:center;
+  #bracket-empty, #tournament-empty, #fillbracket-empty{display:none; flex:1; align-items:center; justify-content:center; padding:24px; text-align:center;
                  color:var(--txt-dim); font-size:13px; line-height:1.6;}
+
+  /* ---------- FILL YOUR BRACKET ---------- */
+  .unit.locked{border-style:dashed; background:rgba(26,26,36,.55); box-shadow:none; background-image:none;}
+  .unit.locked .lockmsg{padding:24px 14px; width:100%; text-align:center; font-size:11px; color:var(--txt-dim); font-style:italic;}
+  .submit-bar{flex:0 0 auto; padding:10px 16px 14px; border-top:1px solid var(--card-line); background:var(--card);}
+  .submit-row{display:flex; align-items:center; gap:10px;}
+  .submit-progress{flex:1; font-size:11px; color:var(--txt-dim); font-family:'IBM Plex Mono';}
+  .submit-btn{width:auto; margin-top:0; background:var(--gold); color:#17170F; border:none; padding:11px 18px; border-radius:10px; font-weight:800; font-size:13px; cursor:pointer;}
+  .submit-msg{font-size:11px; color:var(--red); margin-top:6px; line-height:1.5;}
+  .submit-msg.success{color:var(--green);}
 
   /* ---------- STANDINGS ---------- */
   .scroller{flex:1; min-height:0; overflow-y:auto; scrollbar-width:none;}
@@ -422,10 +432,33 @@
         </div>
       </div>
 
+      <!-- ============ FILL YOUR BRACKET ============ -->
+      <div class="screen" id="screen-fillbracket">
+        <div class="header">
+          <div class="season" id="fillSeason">BOX OFFICE TOURNAMENT</div>
+          <div class="hbar">
+            <div class="hleft"><div class="rd" id="fillRound">Round 1</div></div>
+            <div class="whoami" id="fillPreviewBadge" style="display:none;">PREVIEW</div>
+          </div>
+        </div>
+        <div class="bracket-body">
+          <div class="viewport" id="fillViewport"><div class="plane" id="fillPlane"></div></div>
+          <div id="fillbracket-empty"></div>
+        </div>
+        <div class="submit-bar">
+          <div class="submit-row">
+            <div class="submit-progress" id="fillProgress">32 picks left in Round 1</div>
+            <button class="submit-btn" id="fill-submit-btn">Submit Bracket</button>
+          </div>
+          <div class="submit-msg" id="fillSubmitMsg"></div>
+        </div>
+      </div>
+
       <div class="nav" id="nav">
         <button class="on" data-s="bracket">MY BRACKET</button>
         <button data-s="standings">STANDINGS</button>
         <button data-s="tournament">TOURNAMENT</button>
+        <button data-s="fillbracket" id="nav-fillbracket" style="display:none;">FILL BRACKET</button>
       </div>
     </div>
 

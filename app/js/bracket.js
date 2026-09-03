@@ -1,5 +1,6 @@
 import { supabase } from './supabaseClient.js';
 import { goTab } from './nav.js';
+import { getCurrentSeason } from './season.js';
 
 /* =========================================================================
    Ported from files/live-bracket-prototype.html — same layout math, same
@@ -371,20 +372,14 @@ export async function renderBracket(session, displayName, opts = {}) {
   backBtn.style.display = viewingOther ? 'flex' : 'none';
   document.getElementById('hName').textContent = viewingOther ? opts.playerName : displayName;
 
-  const { data: seasons } = await supabase
-    .from('seasons')
-    .select('id, year, state')
-    .in('state', ['open', 'live', 'ended'])
-    .order('year', { ascending: false })
-    .limit(1);
+  const season = await getCurrentSeason();
 
-  if (!seasons?.length) {
+  if (!season) {
     document.getElementById('plane').innerHTML = '';
     emptyState.textContent = 'No season is open yet.';
     emptyState.style.display = 'flex';
     return;
   }
-  const season = seasons[0];
   document.getElementById('hSeason').textContent = `${season.year} BOX OFFICE TOURNAMENT`;
 
   const { data: bracket } = await supabase

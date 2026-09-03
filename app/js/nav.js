@@ -1,4 +1,4 @@
-const SCREENS = ['bracket', 'standings', 'tournament'];
+const SCREENS = ['bracket', 'standings', 'tournament', 'fillbracket'];
 
 export function goTab(tab) {
   SCREENS.forEach((s) => {

@@ -243,7 +243,12 @@ export async function renderSeasonsAdmin() {
     } else if (sn.state === 'open') {
       const sub = await submissionSummary(sn.id);
       action = `<button data-act="launch|${sn.id}">Launch tournament</button>`;
-      note = `${sub.done} of ${sub.total} brackets submitted.` + (sub.missing.length ? ` Still waiting on ${sub.missing.join(', ')}.` : '');
+      if (sn.commissioner_preview) {
+        action += `<button class="secondary" data-act="reveal|${sn.id}">Make visible to everyone</button>`;
+        note = `Only you can see Fill Your Bracket for this season right now. ${sub.done} of ${sub.total} brackets submitted.`;
+      } else {
+        note = `${sub.done} of ${sub.total} brackets submitted.` + (sub.missing.length ? ` Still waiting on ${sub.missing.join(', ')}.` : '');
+      }
     } else if (sn.state === 'live') {
       const un = await unscoredCount(sn.id);
       action = `<button class="secondary" data-act="end|${sn.id}">End tournament</button>`;
@@ -309,6 +314,12 @@ async function seasonAction(act) {
 
   if (kind === 'open') {
     const { error } = await supabase.from('seasons').update({ state: 'open' }).eq('id', id);
+    if (error) { alert(error.message); return; }
+  }
+
+  if (kind === 'reveal') {
+    if (!confirm('Make Fill Your Bracket visible to everyone for this season? Every player will see the tab next time they open the app.')) return;
+    const { error } = await supabase.from('seasons').update({ commissioner_preview: false }).eq('id', id);
     if (error) { alert(error.message); return; }
   }
 

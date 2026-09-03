@@ -6,6 +6,7 @@ import { renderFullBracket } from './fullbracket.js';
 import { renderProfile } from './profile.js';
 import { goTab } from './nav.js';
 import { openScores, openSeasonsAdmin, renderScores, commitStandings } from './commissioner.js';
+import { getFillSeason, renderFillBracket } from './fillbracket.js';
 import './keyboard-scroll.js';
 
 const form = document.getElementById('login-form');
@@ -38,6 +39,7 @@ const feedbackStatus = document.getElementById('feedback-status');
 
 let currentSession = null;
 let currentUserId = null;
+let isCommissioner = false;
 
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -159,6 +161,7 @@ document.querySelectorAll('.nav button').forEach((btn) => {
     if (tab === 'bracket') goToOwnBracket();
     if (tab === 'standings') renderStandings(currentSession);
     if (tab === 'tournament') renderTournament();
+    if (tab === 'fillbracket') renderFillBracket(currentSession, isCommissioner);
   });
 });
 
@@ -195,12 +198,16 @@ async function showSignedIn(session) {
 
   currentSession = session;
   currentUserId = session.user.id;
+  isCommissioner = !!player?.is_commissioner;
   const displayName = player?.display_name ?? session.user.email;
 
   loginScreen.style.display = 'none';
   appShell.style.display = 'flex';
   whoEl.textContent = displayName;
-  commissionerLinks.style.display = player?.is_commissioner ? 'block' : 'none';
+  commissionerLinks.style.display = isCommissioner ? 'block' : 'none';
+
+  const fillSeason = await getFillSeason(isCommissioner);
+  document.getElementById('nav-fillbracket').style.display = fillSeason ? '' : 'none';
 
   await renderBracket(session, displayName);
 }
