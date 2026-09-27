@@ -8,7 +8,7 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 
 export async function buildEntries(season, films, session) {
   const { data: players } = await supabase.from('players').select('id, display_name');
-  const { data: brackets } = await supabase.from('brackets').select('id, player_id').eq('season_id', season.id);
+  const { data: brackets } = await supabase.from('brackets').select('id, player_id, tiebreaker_guess').eq('season_id', season.id);
 
   const bracketIds = (brackets || []).map((b) => b.id);
   const { data: picks } = bracketIds.length
@@ -35,6 +35,7 @@ export async function buildEntries(season, films, session) {
         total,
         champion,
         championAlive,
+        tiebreakerGuess: b.tiebreaker_guess,
       };
     });
 }
@@ -58,7 +59,7 @@ export async function renderStandings(session) {
   const entries = await buildEntries(season, films, session);
   countEl.textContent = `${entries.length} PLAYER${entries.length === 1 ? '' : 'S'}`;
 
-  const current = rankByPoints(entries);
+  const current = rankByPoints(entries, season.tiebreaker_answer);
 
   // movement: diff against the commissioner's last explicit "Update Standings"
   // snapshot (see commissioner.js commitStandings) — not inferred from film

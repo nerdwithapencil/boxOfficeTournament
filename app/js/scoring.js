@@ -30,13 +30,33 @@ export function scoreBracket(films, picksByRoundSlot) {
   return { total, byRound, pickState, champion, championAlive, resolver };
 }
 
-// Standard competition ranking (1,2,2,4 — ties share a place, next place skips).
-export function rankByPoints(entries) {
-  const sorted = [...entries].sort((a, b) => b.total - a.total);
-  let place = 0, seen = 0, lastTotal = null;
+// Standard competition ranking (1,2,2,4 — ties share a place, next place
+// skips), with points tied further broken by whoever's tiebreaker guess is
+// closest to the real answer (no "can't go over" rule — pure distance).
+// Only kicks in once both the real answer and a player's own guess exist;
+// until then, or if two guesses are exactly equidistant, they keep sharing
+// a place exactly as before.
+export function rankByPoints(entries, tiebreakerAnswer) {
+  const distanceOf = (e) =>
+    tiebreakerAnswer != null && e.tiebreakerGuess != null
+      ? Math.abs(e.tiebreakerGuess - tiebreakerAnswer)
+      : null;
+
+  const withDistance = entries.map((e) => ({ ...e, tbDistance: distanceOf(e) }));
+  const sorted = withDistance.sort((a, b) => {
+    if (b.total !== a.total) return b.total - a.total;
+    if (a.tbDistance != null && b.tbDistance != null) return a.tbDistance - b.tbDistance;
+    return 0;
+  });
+
+  let place = 0, seen = 0, lastTotal = null, lastDistance = null;
   return sorted.map((e) => {
     seen += 1;
-    if (e.total !== lastTotal) { place = seen; lastTotal = e.total; }
+    if (e.total !== lastTotal || e.tbDistance !== lastDistance) {
+      place = seen;
+      lastTotal = e.total;
+      lastDistance = e.tbDistance;
+    }
     return { ...e, place };
   });
 }

@@ -40,7 +40,7 @@ function setCommitButtonDirty(dirty) {
 // what openScores() uses instead of trusting the in-memory flag above.
 async function computeDirty(season, films) {
   const entries = await buildEntries(season, films, { user: { id: '' } });
-  const ranked = rankByPoints(entries);
+  const ranked = rankByPoints(entries, season.tiebreaker_answer);
   const { data: snapshotRows } = await supabase
     .from('standings_snapshot')
     .select('player_id, place, points')
@@ -94,6 +94,45 @@ function escapeHtml(s) {
   return d.innerHTML;
 }
 
+// Pinned to the bottom of the list, exempt from search/sort — it isn't a
+// film. Reuses openId's toggle with a sentinel id since it's the same
+// expand/collapse behavior as any other row.
+const TIEBREAKER_ROW_ID = '__tiebreaker__';
+function tiebreakerRowHTML() {
+  const q = season.tiebreaker_question || '(no question set for this season)';
+  const hasAnswer = season.tiebreaker_answer != null;
+  const stateHtml = hasAnswer
+    ? `<div class="c-state paid">${season.tiebreaker_answer.toFixed(2)}</div>`
+    : `<div class="c-state due">NEEDS ANSWER</div>`;
+  return `
+    <div class="c-row ${openId === TIEBREAKER_ROW_ID ? 'open' : ''}">
+      <div class="c-top" data-toggle="${TIEBREAKER_ROW_ID}">
+        <div class="c-mid"><div class="c-nm">Tie Breaker</div><div class="c-sub">${escapeHtml(q)}</div></div>
+        ${stateHtml}
+      </div>
+      <div class="c-edit">
+        <div class="c-lab">QUESTION</div>
+        <div class="c-sub" style="margin-bottom:10px;">${escapeHtml(q)}</div>
+        <div class="c-lab">FINAL ANSWER</div>
+        <input class="c-in mono" type="number" step="0.01" placeholder="0.00" id="cf-tb-answer"
+               value="${hasAnswer ? season.tiebreaker_answer.toFixed(2) : ''}">
+        <button class="c-save" id="cf-tb-save">Save</button>
+      </div>
+    </div>`;
+}
+
+async function saveTiebreaker() {
+  const raw = document.getElementById('cf-tb-answer').value;
+  const answer = raw === '' ? null : Math.round(parseFloat(raw) * 100) / 100;
+  const { error } = await supabase.from('seasons').update({ tiebreaker_answer: answer }).eq('id', season.id);
+  if (error) { alert(error.message); return; }
+  season.tiebreaker_answer = answer;
+  setCommitButtonDirty(true);
+  openId = null;
+  renderScores();
+  showToast('Saved');
+}
+
 export function renderScores() {
   const listEl = document.getElementById('comm-scores-list');
   const chipsEl = document.getElementById('comm-scores-chips');
@@ -133,6 +172,7 @@ export function renderScores() {
         </div>
       </div>`).join('')
     : `<div class="c-empty">Nothing here right now.</div>`;
+  listEl.innerHTML += tiebreakerRowHTML();
 
   listEl.querySelectorAll('[data-toggle]').forEach((el) => el.addEventListener('click', () => {
     openId = openId === el.dataset.toggle ? null : el.dataset.toggle;
@@ -146,6 +186,7 @@ export function renderScores() {
     renderScores();
   }));
   listEl.querySelectorAll('[data-save]').forEach((el) => el.addEventListener('click', () => saveFilm(el.dataset.save)));
+  document.getElementById('cf-tb-save')?.addEventListener('click', saveTiebreaker);
 }
 
 async function saveFilm(id) {
@@ -206,7 +247,7 @@ export async function openScores() {
 export async function commitStandings() {
   if (!season) return;
   const entries = await buildEntries(season, films, { user: { id: '' } });
-  const ranked = rankByPoints(entries);
+  const ranked = rankByPoints(entries, season.tiebreaker_answer);
   const takenAt = new Date().toISOString();
   const rows = ranked.map((e) => ({
     season_id: season.id,
@@ -278,8 +319,13 @@ export async function renderSeasonsAdmin() {
       }
     } else if (sn.state === 'live') {
       const un = await unscoredCount(sn.id);
-      action = `<button class="secondary" data-act="end|${sn.id}">End tournament</button>`;
-      note = un === 0 ? 'Every film has a score — ready to end whenever you like.' : `${un} film${un === 1 ? '' : 's'} still without a score.`;
+      const missingTiebreaker = sn.tiebreaker_answer == null;
+      const blocked = un > 0 || missingTiebreaker;
+      action = `<button class="secondary" data-act="end|${sn.id}" ${blocked ? 'disabled' : ''}>End tournament</button>`;
+      const notes = [];
+      if (un > 0) notes.push(`${un} film${un === 1 ? '' : 's'} still without a score.`);
+      if (missingTiebreaker) notes.push('Tie breaker final answer not entered yet.');
+      note = notes.length ? notes.join(' ') : 'Every film has a score and the tie breaker is set — ready to end whenever you like.';
     } else {
       note = 'Finished. Still readable by everyone, and listed in each profile.';
     }
@@ -361,8 +407,7 @@ async function seasonAction(act) {
   }
 
   if (kind === 'end') {
-    const un = await unscoredCount(id);
-    if (!confirm(`End this season?\n\n${un ? un + ' films still have no score. ' : ''}It stops being the current season, moves into everyone's history, and stays readable.`)) return;
+    if (!confirm('End this season?\n\nIt stops being the current season, moves into everyone\'s history, and stays readable.')) return;
     const { error } = await supabase.from('seasons').update({ state: 'ended' }).eq('id', id);
     if (error) { alert(error.message); return; }
   }

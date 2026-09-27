@@ -18,6 +18,7 @@ let season = null;
 let bracketId = null;
 let films = [];
 let picks = { 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] };
+let tiebreakerGuess = null;
 
 // hasSubmitted/picksDirty drive the submit button's gray/gold state. Both
 // come from the bracket row itself (submitted_at, picks_dirty) rather than
@@ -51,6 +52,16 @@ function escapeHtml(s) {
   return d.innerHTML;
 }
 
+function tiebreakerBoxHTML() {
+  const q = season?.tiebreaker_question || '(no question set for this season)';
+  return `<div class="tiebreaker-box" id="fillTiebreakerBox">
+    <div class="tb-label">TIE BREAKER</div>
+    <div class="tb-question">"${escapeHtml(q)}"</div>
+    <input class="tb-input" id="fillTiebreakerInput" type="number" step="0.01" placeholder="Your guess"
+           value="${tiebreakerGuess != null ? tiebreakerGuess : ''}">
+  </div>`;
+}
+
 function buildCol(r) {
   const info = ROUNDS_INFO[r - 1];
   let h = '';
@@ -72,6 +83,7 @@ function buildCol(r) {
       <div class="${clsB}" data-pick="${r}:${i}:${b.id}">${seedB}<span class="ttl">${escapeHtml(b.title)}</span></div>
     </div>`;
   }
+  if (r === NR) h += tiebreakerBoxHTML();
   return h;
 }
 
@@ -123,6 +135,8 @@ function observeUnits() {
     requestAnimationFrame(() => { roQueued = false; relayoutNow(); });
   });
   for (let r = 1; r <= NR; r++) els[r]?.units.forEach((u) => unitRO.observe(u));
+  const tb = document.getElementById('fillTiebreakerBox');
+  if (tb) unitRO.observe(tb);
 }
 
 function tallestUnit() {
@@ -152,6 +166,16 @@ function layout() {
       el.style.top = centerOf(r, i) - (nat * s) / 2 - 19 + 'px';
       el.style.opacity = s > 0.6 ? 1 : Math.max(0, (s - 0.35) / 0.25);
     });
+    if (r === NR) {
+      const tb = document.getElementById('fillTiebreakerBox');
+      const champUnit = E.units[0];
+      if (tb && champUnit) {
+        const nat = champUnit.offsetHeight, s = scaleAt(nat);
+        const top = centerOf(r, 0) + (nat * s) / 2 + 16;
+        tb.style.top = top + 'px';
+        planeH = Math.max(planeH, top + tb.offsetHeight);
+      }
+    }
   }
   const plane = document.getElementById('fillPlane');
   plane.style.height = Math.max(planeH + TOP_PAD, view.clientHeight) + 'px';
@@ -321,6 +345,21 @@ async function pick(r, i, filmId) {
   }
 }
 
+async function saveTiebreakerGuess(raw) {
+  const value = raw === '' ? null : Math.round(parseFloat(raw) * 100) / 100;
+  if (value === tiebreakerGuess) return;
+  tiebreakerGuess = value;
+
+  if (hasSubmitted && !picksDirty) {
+    picksDirty = true;
+    updateSubmitButtonState();
+    await supabase.from('brackets').update({ picks_dirty: true }).eq('id', bracketId);
+  }
+
+  const { error } = await supabase.from('brackets').update({ tiebreaker_guess: value }).eq('id', bracketId);
+  if (error) alert(`Tie breaker guess didn't save: ${error.message}. Reload and try again.`);
+}
+
 function updateProgress() {
   const info = ROUNDS_INFO[currentRound - 1];
   const made = (picks[currentRound] || []).filter(Boolean).length;
@@ -336,6 +375,7 @@ async function submitBracket() {
     const made = (picks[idx + 1] || []).filter(Boolean).length;
     if (made < info.pairs) miss.push(`${info.name} (${made}/${info.pairs})`);
   });
+  if (tiebreakerGuess == null) miss.push('Tie Breaker');
   if (miss.length) {
     msgEl.textContent = `Finish these before submitting: ${miss.join(', ')}`;
     msgEl.className = 'submit-msg';
@@ -387,7 +427,7 @@ export async function renderFillBracket(session, isCommissioner) {
 
   let { data: bracket } = await supabase
     .from('brackets')
-    .select('id, submitted_at, picks_dirty')
+    .select('id, submitted_at, picks_dirty, tiebreaker_guess')
     .eq('season_id', season.id)
     .eq('player_id', session.user.id)
     .maybeSingle();
@@ -396,7 +436,7 @@ export async function renderFillBracket(session, isCommissioner) {
     const { data: created, error } = await supabase
       .from('brackets')
       .insert({ season_id: season.id, player_id: session.user.id })
-      .select('id, submitted_at, picks_dirty')
+      .select('id, submitted_at, picks_dirty, tiebreaker_guess')
       .single();
     if (error) {
       emptyState.textContent = error.message;
@@ -408,6 +448,7 @@ export async function renderFillBracket(session, isCommissioner) {
   bracketId = bracket.id;
   hasSubmitted = !!bracket.submitted_at;
   picksDirty = !!bracket.picks_dirty;
+  tiebreakerGuess = bracket.tiebreaker_guess;
   document.getElementById('fillSubmitMsg').textContent = '';
 
   const { data: pickRows } = await supabase
@@ -456,6 +497,10 @@ export async function renderFillBracket(session, isCommissioner) {
       if (!el) return;
       const [r, i, filmId] = el.dataset.pick.split(':');
       pick(+r, +i, filmId);
+    });
+    document.getElementById('fillPlane').addEventListener('change', (e) => {
+      if (e.target.id !== 'fillTiebreakerInput') return;
+      saveTiebreakerGuess(e.target.value);
     });
     document.getElementById('fill-submit-btn').addEventListener('click', submitBracket);
     const V = vp();

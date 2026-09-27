@@ -160,6 +160,16 @@
   .submit-msg{font-size:11px; color:var(--red); margin-top:6px; line-height:1.5;}
   .submit-msg.success{color:var(--green);}
 
+  /* ---------- TIE BREAKER — sits below the champion pick in Championship ---------- */
+  .tiebreaker-box{position:absolute; left:16px; right:46px; background:var(--card); border:1px solid var(--card-line);
+    border-radius:12px; padding:14px 16px; box-shadow:0 6px 18px -6px rgba(0,0,0,.85), inset 0 1px 0 rgba(255,255,255,.07);}
+  .tb-label{font-family:'IBM Plex Mono'; font-size:9.5px; letter-spacing:2px; color:var(--txt-dim); font-weight:700; margin-bottom:6px;}
+  .tb-question{font-size:12px; font-style:italic; color:var(--txt); margin-bottom:10px; line-height:1.4;}
+  .tb-input{width:100%; font-size:16px; font-family:'IBM Plex Mono'; color:var(--cream); background:#111118;
+    border:1px solid var(--card-line); border-radius:9px; padding:11px 12px; outline:none;}
+  .tb-input:focus{border-color:var(--gold);}
+  .tb-answer{font-family:'IBM Plex Mono'; font-size:20px; font-weight:700; color:var(--gold);}
+
   /* ---------- STANDINGS ---------- */
   .scroller{flex:1; min-height:0; overflow-y:auto; scrollbar-width:none;}
   .scroller::-webkit-scrollbar{display:none;}

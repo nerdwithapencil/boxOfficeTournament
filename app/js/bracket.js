@@ -24,6 +24,8 @@ const fmtDate = (d) => `opens ${MONTHS[d.getMonth()]} ${d.getDate()}`;
 
 let allMovies = [];
 let myPicks = { 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] };
+let currentSeason = null;
+let viewedTiebreakerGuess = null;
 
 /* =========================================================================
    RESOLUTION — a matchup resolves once both sides have a score. A film's
@@ -143,6 +145,17 @@ function halfHTML(m, r, isMine, state, tie, showReason) {
   return `<div class="${cls}">${top}<span class="ttl">${escapeHtml(m.title)}</span>${figure}</div>`;
 }
 
+function tiebreakerBoxHTML() {
+  const q = currentSeason?.tiebreaker_question;
+  if (!q) return '';
+  const guess = viewedTiebreakerGuess;
+  return `<div class="tiebreaker-box" id="bracketTiebreakerBox">
+    <div class="tb-label">TIE BREAKER</div>
+    <div class="tb-question">"${escapeHtml(q)}"</div>
+    <div class="tb-answer">${guess != null ? guess : '—'}</div>
+  </div>`;
+}
+
 function buildCol(r) {
   const info = roundsInfo[r - 1];
   let h = '';
@@ -157,6 +170,7 @@ function buildCol(r) {
     }
     h += `<div class="unit" data-i="${i}">${halfHTML(a, r, mine === a, state, res.tie, r === 1)}${halfHTML(b, r, mine === b, state, res.tie, r === 1)}</div>`;
   }
+  if (r === NR) h += tiebreakerBoxHTML();
   return h;
 }
 
@@ -196,6 +210,8 @@ function observeUnits() {
     requestAnimationFrame(() => { roQueued = false; relayoutNow(); });
   });
   for (let r = 1; r <= NR; r++) els[r]?.units.forEach((u) => unitRO.observe(u));
+  const tb = document.getElementById('bracketTiebreakerBox');
+  if (tb) unitRO.observe(tb);
 }
 
 function tallestUnit() {
@@ -233,6 +249,16 @@ function layout() {
       el.style.top = centerOf(r, i) - (nat * s) / 2 - 19 - (hasTab[i] ? 23 : 0) + 'px';
       el.style.opacity = s > 0.6 ? 1 : Math.max(0, (s - 0.35) / 0.25);
     });
+    if (r === NR) {
+      const tb = document.getElementById('bracketTiebreakerBox');
+      const champUnit = E.units[0];
+      if (tb && champUnit) {
+        const nat = champUnit.offsetHeight, s = scaleAt(nat);
+        const top = centerOf(r, 0) + (nat * s) / 2 + 16;
+        tb.style.top = top + 'px';
+        planeH = Math.max(planeH, top + tb.offsetHeight);
+      }
+    }
   }
   const plane = document.getElementById('plane');
   plane.style.height = Math.max(planeH + TOP_PAD, view.clientHeight) + 'px';
@@ -373,6 +399,7 @@ export async function renderBracket(session, displayName, opts = {}) {
   document.getElementById('hName').textContent = viewingOther ? opts.playerName : displayName;
 
   const season = await getCurrentSeason();
+  currentSeason = season;
 
   if (!season) {
     document.getElementById('plane').innerHTML = '';
@@ -384,7 +411,7 @@ export async function renderBracket(session, displayName, opts = {}) {
 
   const { data: bracket } = await supabase
     .from('brackets')
-    .select('id')
+    .select('id, tiebreaker_guess')
     .eq('season_id', season.id)
     .eq('player_id', targetId)
     .maybeSingle();
@@ -397,6 +424,7 @@ export async function renderBracket(session, displayName, opts = {}) {
     emptyState.style.display = 'flex';
     return;
   }
+  viewedTiebreakerGuess = bracket.tiebreaker_guess;
 
   const { data: films } = await supabase
     .from('films')

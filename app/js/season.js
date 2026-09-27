@@ -9,7 +9,7 @@ import { sortFilms } from './resolve.js';
 export async function getCurrentSeason() {
   const { data } = await supabase
     .from('seasons')
-    .select('id, year, state')
+    .select('id, year, state, tiebreaker_question, tiebreaker_answer')
     .in('state', ['live', 'ended'])
     .order('year', { ascending: false })
     .limit(1);
@@ -19,7 +19,7 @@ export async function getCurrentSeason() {
 export async function getOpenSeason() {
   const { data } = await supabase
     .from('seasons')
-    .select('id, year, state, commissioner_preview')
+    .select('id, year, state, commissioner_preview, tiebreaker_question')
     .eq('state', 'open')
     .order('year', { ascending: false })
     .limit(1);
@@ -37,7 +37,7 @@ export async function getSeasonFilms(seasonId) {
 export async function getAllSeasons() {
   const { data } = await supabase
     .from('seasons')
-    .select('id, year, state, lock_date, is_historical, commissioner_preview')
+    .select('id, year, state, lock_date, is_historical, commissioner_preview, tiebreaker_question, tiebreaker_answer')
     .order('year', { ascending: false });
   return data || [];
 }
