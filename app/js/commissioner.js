@@ -2,6 +2,7 @@ import { supabase } from './supabaseClient.js';
 import { getCurrentSeason, getAllSeasons } from './season.js';
 import { buildEntries } from './standings.js';
 import { rankByPoints } from './scoring.js';
+import { sortFilms } from './resolve.js';
 
 /* =========================================================================
    SCORES — ported from files/commissioner-prototype.html. Class names are
@@ -29,7 +30,9 @@ const SORTS = [['release', 'RELEASE'], ['seed', 'RANK'], ['name', 'A–Z'], ['sc
 let scoresDirty = false;
 function setCommitButtonDirty(dirty) {
   scoresDirty = dirty;
-  document.getElementById('comm-commit-btn')?.classList.toggle('secondary', !dirty);
+  const btn = document.getElementById('comm-commit-btn');
+  btn?.classList.toggle('secondary', !dirty);
+  if (btn) btn.disabled = !dirty;
 }
 
 // The authoritative check: does live standings (place or points) disagree
@@ -56,7 +59,12 @@ async function loadFilms() {
     .from('films')
     .select('id, title, bracket, seed, release_date, score, zero_reason')
     .eq('season_id', season.id);
-  films = (data || []).map((f) => ({ ...f, release_date: new Date(f.release_date + 'T00:00:00') }));
+  // scoreBracket()/createResolver() pair up Round 1 by array position
+  // (films[i*2]/films[i*2+1]), which only lines up with the real matchups
+  // when films are in bracket-then-seed order — sortFilms() is what every
+  // other screen uses before scoring anything; this one never did, so every
+  // "Update Standings" commit from here was scoring scrambled matchups.
+  films = sortFilms(data || []);
 }
 
 function needsScore(m) {
