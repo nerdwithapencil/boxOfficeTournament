@@ -20,14 +20,33 @@ let sortBy = 'release';
 let openId = null;
 const SORTS = [['release', 'RELEASE'], ['seed', 'RANK'], ['name', 'A–Z'], ['score', 'SCORE']];
 
-// Tracks whether any score has been saved since the last "Update Standings"
-// press — independent of whether that score actually moved anyone's rank,
-// since the point is to remind the commissioner a commit is worth doing,
-// not to judge whether it'll matter.
+// Whether the "Update Standings" button shows gold. Saving a score sets this
+// true immediately for instant feedback, but that alone can't be trusted
+// across a reload — it's just an in-memory flag, so closing the app and
+// coming back later silently reset it to "clean" even with a real
+// uncommitted change sitting underneath. openScores() below always
+// recomputes this for real against the database before trusting it.
 let scoresDirty = false;
 function setCommitButtonDirty(dirty) {
   scoresDirty = dirty;
   document.getElementById('comm-commit-btn')?.classList.toggle('secondary', !dirty);
+}
+
+// The authoritative check: does live standings (place or points) disagree
+// with what's actually stored in standings_snapshot for anyone? This is
+// what openScores() uses instead of trusting the in-memory flag above.
+async function computeDirty(season, films) {
+  const entries = await buildEntries(season, films, { user: { id: '' } });
+  const ranked = rankByPoints(entries);
+  const { data: snapshotRows } = await supabase
+    .from('standings_snapshot')
+    .select('player_id, place, points')
+    .eq('season_id', season.id);
+  const snapshotByPlayer = Object.fromEntries((snapshotRows || []).map((r) => [r.player_id, r]));
+  return ranked.some((e) => {
+    const snap = snapshotByPlayer[e.playerId];
+    return !snap || snap.place !== e.place || snap.points !== e.total;
+  });
 }
 
 async function loadFilms() {
@@ -166,7 +185,7 @@ export async function openScores() {
   document.getElementById('comm-scores-search').value = '';
   openId = null;
   renderScores();
-  setCommitButtonDirty(scoresDirty);
+  setCommitButtonDirty(season ? await computeDirty(season, films) : false);
   document.getElementById('commissionerScoresOverlay').classList.add('open');
 }
 
