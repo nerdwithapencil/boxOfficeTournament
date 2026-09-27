@@ -19,6 +19,23 @@ let bracketId = null;
 let films = [];
 let picks = { 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] };
 
+// hasSubmitted/picksDirty drive the submit button's gray/gold state. Both
+// come from the bracket row itself (submitted_at, picks_dirty) rather than
+// a plain JS flag, so they read correctly even after a reload — a plain
+// in-memory flag would forget "you made changes" the moment the page
+// reloads, the exact bug just fixed for the commissioner's commit button.
+let hasSubmitted = false;
+let picksDirty = false;
+
+function updateSubmitButtonState() {
+  const btn = document.getElementById('fill-submit-btn');
+  if (!btn) return;
+  const clean = hasSubmitted && !picksDirty;
+  btn.textContent = hasSubmitted && picksDirty ? 'Re-Submit Changes' : 'Submit Bracket';
+  btn.disabled = clean;
+  btn.classList.toggle('secondary', clean);
+}
+
 function pairFor(r, i) {
   if (r === 1) return [films[i * 2], films[i * 2 + 1]];
   return [picks[r - 1][i * 2], picks[r - 1][i * 2 + 1]];
@@ -286,6 +303,12 @@ async function pick(r, i, filmId) {
   layout(); restore(anc);
   updateProgress();
 
+  if (hasSubmitted && !picksDirty) {
+    picksDirty = true;
+    updateSubmitButtonState();
+    await supabase.from('brackets').update({ picks_dirty: true }).eq('id', bracketId);
+  }
+
   await supabase.from('picks').upsert(
     { bracket_id: bracketId, round: r, slot: i, film_id: chosen.id },
     { onConflict: 'bracket_id,round,slot' }
@@ -315,8 +338,14 @@ async function submitBracket() {
     msgEl.className = 'submit-msg';
     return;
   }
-  const { error } = await supabase.from('brackets').update({ submitted_at: new Date().toISOString() }).eq('id', bracketId);
+  const { error } = await supabase
+    .from('brackets')
+    .update({ submitted_at: new Date().toISOString(), picks_dirty: false })
+    .eq('id', bracketId);
   if (error) { msgEl.textContent = error.message; msgEl.className = 'submit-msg'; return; }
+  hasSubmitted = true;
+  picksDirty = false;
+  updateSubmitButtonState();
   msgEl.textContent = 'Bracket submitted — you can keep changing picks any time before the season launches.';
   msgEl.className = 'submit-msg success';
 }
@@ -355,7 +384,7 @@ export async function renderFillBracket(session, isCommissioner) {
 
   let { data: bracket } = await supabase
     .from('brackets')
-    .select('id')
+    .select('id, submitted_at, picks_dirty')
     .eq('season_id', season.id)
     .eq('player_id', session.user.id)
     .maybeSingle();
@@ -364,7 +393,7 @@ export async function renderFillBracket(session, isCommissioner) {
     const { data: created, error } = await supabase
       .from('brackets')
       .insert({ season_id: season.id, player_id: session.user.id })
-      .select('id')
+      .select('id, submitted_at, picks_dirty')
       .single();
     if (error) {
       emptyState.textContent = error.message;
@@ -374,6 +403,9 @@ export async function renderFillBracket(session, isCommissioner) {
     bracket = created;
   }
   bracketId = bracket.id;
+  hasSubmitted = !!bracket.submitted_at;
+  picksDirty = !!bracket.picks_dirty;
+  document.getElementById('fillSubmitMsg').textContent = '';
 
   const { data: pickRows } = await supabase
     .from('picks')
@@ -389,6 +421,7 @@ export async function renderFillBracket(session, isCommissioner) {
   layout();
   applyX(0);
   updateHeader();
+  updateSubmitButtonState();
 
   if (!booted) {
     booted = true;
