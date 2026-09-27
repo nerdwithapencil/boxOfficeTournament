@@ -309,12 +309,15 @@ async function pick(r, i, filmId) {
     await supabase.from('brackets').update({ picks_dirty: true }).eq('id', bracketId);
   }
 
-  await supabase.from('picks').upsert(
+  const { error: upsertError } = await supabase.from('picks').upsert(
     { bracket_id: bracketId, round: r, slot: i, film_id: chosen.id },
     { onConflict: 'bracket_id,round,slot' }
   );
+  if (upsertError) alert(`Pick didn't save: ${upsertError.message}. Reload and try again.`);
   for (const c of cleared) {
-    await supabase.from('picks').delete().eq('bracket_id', bracketId).eq('round', c.round).eq('slot', c.slot);
+    const { error: deleteError } = await supabase
+      .from('picks').delete().eq('bracket_id', bracketId).eq('round', c.round).eq('slot', c.slot);
+    if (deleteError) alert(`Couldn't clear an old pick: ${deleteError.message}. Reload to recheck your bracket.`);
   }
 }
 
@@ -415,6 +418,29 @@ export async function renderFillBracket(session, isCommissioner) {
   const byId = Object.fromEntries(films.map((m) => [m.id, m]));
   picks = { 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] };
   (pickRows || []).forEach((p) => { picks[p.round][p.slot] = byId[p.film_id]; });
+
+  // Self-heal: changing an earlier pick clears any now-invalid downstream
+  // picks locally and queues deletes for them, but a failed delete leaves a
+  // stale row that comes back to life on the next load — a later round
+  // showing an impossible winner that no longer matches either option fed
+  // to it. Validate every round against what its own feeder round actually
+  // produced, in order, and drop (and clean up) anything that doesn't match.
+  const orphaned = [];
+  for (let r = 2; r <= NR; r++) {
+    const info = ROUNDS_INFO[r - 1];
+    for (let i = 0; i < info.pairs; i++) {
+      const p = picks[r][i];
+      if (p === undefined) continue;
+      const [a, b] = pairFor(r, i);
+      if (p !== a && p !== b) {
+        picks[r][i] = undefined;
+        orphaned.push({ round: r, slot: i });
+      }
+    }
+  }
+  for (const o of orphaned) {
+    await supabase.from('picks').delete().eq('bracket_id', bracketId).eq('round', o.round).eq('slot', o.slot);
+  }
 
   build();
   currentRound = 1; focus = 1; targetFocus = 1; colIndex = 0;
