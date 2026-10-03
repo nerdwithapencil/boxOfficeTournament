@@ -102,7 +102,7 @@ function tiebreakerRowHTML() {
   const q = season.tiebreaker_question || '(no question set for this season)';
   const hasAnswer = season.tiebreaker_answer != null;
   const stateHtml = hasAnswer
-    ? `<div class="c-state paid">${season.tiebreaker_answer.toFixed(2)}</div>`
+    ? `<div class="c-state paid">$${Number(season.tiebreaker_answer).toFixed(2)}</div>`
     : `<div class="c-state due">NEEDS ANSWER</div>`;
   return `
     <div class="c-row ${openId === TIEBREAKER_ROW_ID ? 'open' : ''}">
@@ -114,8 +114,9 @@ function tiebreakerRowHTML() {
         <div class="c-lab">QUESTION</div>
         <div class="c-sub" style="margin-bottom:10px;">${escapeHtml(q)}</div>
         <div class="c-lab">FINAL ANSWER</div>
-        <input class="c-in mono" type="number" step="0.01" placeholder="0.00" id="cf-tb-answer"
-               value="${hasAnswer ? season.tiebreaker_answer.toFixed(2) : ''}">
+        <div class="c-money"><span>$</span>
+          <input class="c-in mono" type="number" step="0.01" placeholder="0.00" id="cf-tb-answer"
+                 value="${hasAnswer ? Number(season.tiebreaker_answer).toFixed(2) : ''}"></div>
         <button class="c-save" id="cf-tb-save">Save</button>
       </div>
     </div>`;
@@ -238,21 +239,27 @@ export async function openScores() {
   document.getElementById('commissionerScoresOverlay').classList.add('open');
 }
 
-// Standings "movement" is measured against this snapshot, not inferred from
-// film release dates — press after a batch of score edits to make that
-// batch's effect on everyone's rank visible. Editing a title/date without
-// touching any score is harmless to press too: since nobody's points
-// actually changed, the new snapshot comes out identical to the old one and
-// movement still correctly reads as "—" for everyone.
+// Standings "movement" is the change between the previous commit and this
+// one, so the place being overwritten is saved alongside the new one as
+// prev_place. Keeping only the new places would make every badge read zero
+// the instant this is pressed, since everyone would be compared to
+// themselves. Players with no earlier snapshot (new, or the very first
+// commit) get prev_place = place, i.e. no movement.
 export async function commitStandings() {
   if (!season) return;
   const entries = await buildEntries(season, films, { user: { id: '' } });
   const ranked = rankByPoints(entries, season.tiebreaker_answer);
+  const { data: existing } = await supabase
+    .from('standings_snapshot')
+    .select('player_id, place')
+    .eq('season_id', season.id);
+  const prevByPlayer = Object.fromEntries((existing || []).map((r) => [r.player_id, r.place]));
   const takenAt = new Date().toISOString();
   const rows = ranked.map((e) => ({
     season_id: season.id,
     player_id: e.playerId,
     place: e.place,
+    prev_place: prevByPlayer[e.playerId] ?? e.place,
     points: e.total,
     taken_at: takenAt,
   }));

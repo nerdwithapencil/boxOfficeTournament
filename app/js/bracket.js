@@ -152,7 +152,7 @@ function tiebreakerBoxHTML() {
   return `<div class="tiebreaker-box" id="bracketTiebreakerBox">
     <div class="tb-label">TIE BREAKER</div>
     <div class="tb-question">"${escapeHtml(q)}"</div>
-    <div class="tb-answer">${guess != null ? guess : '—'}</div>
+    <div class="tb-answer">${guess != null ? '$' + Number(guess).toFixed(2) : '—'}</div>
   </div>`;
 }
 

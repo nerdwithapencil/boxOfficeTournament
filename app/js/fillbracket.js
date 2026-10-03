@@ -57,8 +57,9 @@ function tiebreakerBoxHTML() {
   return `<div class="tiebreaker-box" id="fillTiebreakerBox">
     <div class="tb-label">TIE BREAKER</div>
     <div class="tb-question">"${escapeHtml(q)}"</div>
-    <input class="tb-input" id="fillTiebreakerInput" type="number" step="0.01" placeholder="Your guess"
-           value="${tiebreakerGuess != null ? tiebreakerGuess : ''}">
+    <div class="tb-money"><span>$</span>
+      <input class="tb-input" id="fillTiebreakerInput" type="number" step="0.01" placeholder="0.00"
+             value="${tiebreakerGuess != null ? Number(tiebreakerGuess).toFixed(2) : ''}"></div>
   </div>`;
 }
 
@@ -347,6 +348,8 @@ async function pick(r, i, filmId) {
 
 async function saveTiebreakerGuess(raw) {
   const value = raw === '' ? null : Math.round(parseFloat(raw) * 100) / 100;
+  const input = document.getElementById('fillTiebreakerInput');
+  if (input && value != null) input.value = value.toFixed(2);
   if (value === tiebreakerGuess) return;
   tiebreakerGuess = value;
 

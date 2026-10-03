@@ -61,19 +61,18 @@ export async function renderStandings(session) {
 
   const current = rankByPoints(entries, season.tiebreaker_answer);
 
-  // movement: diff against the commissioner's last explicit "Update Standings"
-  // snapshot (see commissioner.js commitStandings) — not inferred from film
-  // release dates, which broke on films with fabricated placeholder dates.
+  // movement: how each place changed in the commissioner's last "Update
+  // Standings" (see commissioner.js commitStandings) — previous place vs.
+  // the place saved by that commit, frozen until the next one.
   const { data: snapshotRows } = await supabase
     .from('standings_snapshot')
-    .select('player_id, place, taken_at')
+    .select('player_id, place, prev_place, taken_at')
     .eq('season_id', season.id);
 
   let movementByPlayer = {};
   if (snapshotRows?.length) {
-    const snapshotPlaceByPlayer = Object.fromEntries(snapshotRows.map((r) => [r.player_id, r.place]));
     movementByPlayer = Object.fromEntries(
-      current.map((e) => [e.playerId, (snapshotPlaceByPlayer[e.playerId] ?? e.place) - e.place])
+      snapshotRows.map((r) => [r.player_id, (r.prev_place ?? r.place) - r.place])
     );
     const d = new Date(snapshotRows[0].taken_at);
     sinceEl.textContent = `MOVEMENT SINCE LAST UPDATE · ${MONTHS[d.getMonth()]} ${d.getDate()}`;

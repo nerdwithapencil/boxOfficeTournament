@@ -164,9 +164,13 @@
   .tiebreaker-box{position:absolute; left:16px; right:46px; background:var(--card); border:1px solid var(--card-line);
     border-radius:12px; padding:14px 16px; box-shadow:0 6px 18px -6px rgba(0,0,0,.85), inset 0 1px 0 rgba(255,255,255,.07);}
   .tb-label{font-family:'IBM Plex Mono'; font-size:9.5px; letter-spacing:2px; color:var(--txt-dim); font-weight:700; margin-bottom:6px;}
-  .tb-question{font-size:12px; font-style:italic; color:var(--txt); margin-bottom:10px; line-height:1.4;}
+  .tb-question{font-size:12px; font-style:italic; color:var(--txt-dim); margin-bottom:10px; line-height:1.4;}
+  .tb-money{display:flex; align-items:stretch;}
+  .tb-money span{background:#111118; border:1px solid var(--card-line); border-right:none; border-radius:9px 0 0 9px;
+    padding:0 12px; display:flex; align-items:center; font-family:'IBM Plex Mono'; font-size:16px; color:var(--txt-dim);}
   .tb-input{width:100%; font-size:16px; font-family:'IBM Plex Mono'; color:var(--cream); background:#111118;
     border:1px solid var(--card-line); border-radius:9px; padding:11px 12px; outline:none;}
+  .tb-money .tb-input{border-radius:0 9px 9px 0;}
   .tb-input:focus{border-color:var(--gold);}
   .tb-answer{font-family:'IBM Plex Mono'; font-size:20px; font-weight:700; color:var(--gold);}
 
@@ -514,7 +518,7 @@
           <div class="close-x" id="close-comm-scores-btn">✕</div>
           <h2>Scores</h2>
           <button id="comm-commit-btn" class="secondary" style="margin-top:12px;">Update Standings</button>
-          <p style="font-size:11px; color:var(--txt-dim); margin-top:8px; line-height:1.5;">Press after entering score changes — this is what "movement" on Standings measures against. Grayed out means Standings already matches the current scores.</p>
+          <p style="font-size:11px; color:var(--txt-dim); margin-top:8px; line-height:1.5;">Press after entering score changes — Standings movement shows how everyone's rank changed between the previous update and this one. Grayed out means Standings already matches the current scores.</p>
         </div>
         <div style="padding:14px 20px;">
           <div class="searchwrap">
